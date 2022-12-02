@@ -21,7 +21,15 @@ func (h Hand) Score() int {
 }
 
 func (h Hand) Beats(o Hand) bool {
-	return int(h) == (int(o)+1)%3
+	return h == o.WinsWith()
+}
+
+func (h Hand) WinsWith() Hand {
+	return Hand((int(h) + 1) % 3)
+}
+
+func (h Hand) LoosesWith() Hand {
+	return Hand((int(h) + 2) % 3)
 }
 
 var lookuphand = map[byte]Hand{
@@ -69,7 +77,32 @@ func part1(inputlines []string) {
 }
 
 func part2(inputlines []string) {
-	fmt.Printf("todo\n")
+	starttime := time.Now()
+	totalscore := 0
+	for idx, line := range inputlines {
+		if len(line) != 3 {
+			continue
+		}
+		theirhand, ok := lookuphand[line[0]]
+		if !ok {
+			log.Fatal(fmt.Sprintf("Invalid item %c at line %d", line[0], idx))
+		}
+		var ourhand Hand
+		switch line[2] {
+		case 'X':
+			ourhand = theirhand.LoosesWith()
+		case 'Y':
+			ourhand = theirhand
+			totalscore += 3
+		case 'Z':
+			ourhand = theirhand.WinsWith()
+			totalscore += 6
+		}
+		totalscore += ourhand.Score()
+	}
+	elapsed := time.Now().Sub(starttime)
+	fmt.Printf("Total score: %d\n", totalscore)
+	fmt.Printf("Elapsed: %s\n", elapsed)
 }
 
 func main() {
