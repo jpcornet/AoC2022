@@ -8,7 +8,7 @@ drop table if exists elfinput;
 create table input ( amount varchar )
 ;
 
-\copy input from 'input/test.txt'
+\copy input from 'input/input.txt'
 
 with cte_elfinput as (
     select amount,
