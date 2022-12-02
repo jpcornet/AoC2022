@@ -72,7 +72,7 @@ func part1(inputlines []string) {
 		totalscore += score
 	}
 	elapsed := time.Now().Sub(starttime)
-	fmt.Printf("Total score: %d\n", totalscore)
+	fmt.Printf("part 1 Total score: %d\n", totalscore)
 	fmt.Printf("Elapsed: %s\n", elapsed)
 }
 
@@ -101,7 +101,7 @@ func part2(inputlines []string) {
 		totalscore += ourhand.Score()
 	}
 	elapsed := time.Now().Sub(starttime)
-	fmt.Printf("Total score: %d\n", totalscore)
+	fmt.Printf("part 2 Total score: %d\n", totalscore)
 	fmt.Printf("Elapsed: %s\n", elapsed)
 }
 
