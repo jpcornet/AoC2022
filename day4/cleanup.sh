@@ -24,16 +24,13 @@ part12() {
         done
         # one range is fully contained in the other if start and end are contained in the other
         if [ $r1start -ge $r2start -a $r1start -le $r2end -a $r1end -ge $r2start -a $r1end -le $r2end ]; then
-            echo XXX range 1 $r1start-$r1end is contained in range 2 $r2start-$r2end
             contained=$(($contained + 1))
             overlaps=$(($overlaps + 1))
         elif [ $r2start -ge $r1start -a $r2start -le $r1end -a $r2end -ge $r1start -a $r2end -le $r1end ]; then
-            echo XXX range 1 $r1start-$r1end contains range 2 $r2start-$r2end
             contained=$(($contained + 1))
             overlaps=$(($overlaps + 1))
         # there is overlap if start or end of a range is within the other range
         elif [ \( $r1start -ge $r2start -a $r1start -le $r2end \) -o \( $r1end -ge $r2start -a $r1end -le $r2end \) ]; then
-            echo XXX overlap between ranges: $r1start-$r1end and $r2start-$r2end
             overlaps=$(($overlaps + 1))
         fi
     done < "$1"
