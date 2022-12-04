@@ -15,11 +15,12 @@ part12() {
     local overlaps=0
     local r1start r1end r2start r2end
     while read line; do
-        # make sure input line is in the correct format
-        [[ $line =~ ^[0-9]+-[0-9]+,[0-9]+-[0-9]+$ ]] || error "Invalid input line $line"
-        # split ranges into start and end
-        IFS="$IFS-" read r1start r1end <<<${line%,*}
-        IFS="$IFS-" read r2start r2end <<<${line#*,}
+        # make sure input line is in the correct format, and extract numbers
+        [[ $line =~ ^([0-9]+)-([0-9]+),([0-9]+)-([0-9]+)$ ]] || error "Invalid input line $line"
+        r1start=${BASH_REMATCH[1]}
+        r1end=${BASH_REMATCH[2]}
+        r2start=${BASH_REMATCH[3]}
+        r2end=${BASH_REMATCH[4]}
         # one range is fully contained in the other if start and end are contained in the other
         if [ $r1start -ge $r2start -a $r1start -le $r2end -a $r1end -ge $r2start -a $r1end -le $r2end ]; then
             contained=$(($contained + 1))
