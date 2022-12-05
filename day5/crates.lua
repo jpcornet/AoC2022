@@ -12,7 +12,7 @@ function main (cmdline)
     print("stacks after parsing:")
     local stk = parsed.stacks
     showstacks(stk)
-    do_moves(parsed.moves, stk)
+    do_moves_part2(parsed.moves, stk)
     print("after moves:")
     showstacks(stk)
     local message = ""
@@ -70,10 +70,22 @@ function parseinput (f)
     return { stacks=stacks, moves=moves }
 end
 
-function do_moves (moves, stacks)
+function do_moves_part1 (moves, stacks)
     for _, move in ipairs(moves) do
         for _ = 1, move.n do
             table.insert(stacks[move.to], table.remove(stacks[move.from]))
+        end
+    end
+end
+
+function do_moves_part2 (moves, stacks)
+    for _, move in ipairs(moves) do
+        tempstack = {}
+        for _ = 1, move.n do
+            table.insert(tempstack, table.remove(stacks[move.from]))
+        end
+        for _ = 1, move.n do
+            table.insert(stacks[move.to],table.remove(tempstack))
         end
     end
 end
