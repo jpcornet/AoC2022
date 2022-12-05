@@ -9,10 +9,9 @@ function main (cmdline)
     assert(#cmdline == 1, "Provide input file")
     local f = assert(io.open(cmdline[1]), "Cannot read file " .. cmdline[1])
     local parsed = parseinput(f)
-    print("stacks after parsing:")
     local stk = parsed.stacks
-    showstacks(stk)
     do_moves_part2(parsed.moves, stk)
+    local endtime = chronos.nanotime()
     print("after moves:")
     showstacks(stk)
     local message = ""
@@ -20,6 +19,7 @@ function main (cmdline)
         message = message .. stack[#stack]
     end
     print("Message: " .. message)
+    print("Processing took: " .. (endtime - starttime) * 1000 .. "ms")
 end
 
 function parseinput (f)
