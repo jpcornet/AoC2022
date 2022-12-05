@@ -9,6 +9,8 @@ function main (cmdline)
     assert(#cmdline == 1, "Provide input file")
     local f = assert(io.open(cmdline[1]), "Cannot read file " .. cmdline[1])
     local parsed = parseinput(f)
+    local parsetime = chronos.nanotime()
+    print("Parsing took: " .. (parsetime - starttime))
     local stk = parsed.stacks
     do_moves_part2(parsed.moves, stk)
     local endtime = chronos.nanotime()
@@ -16,7 +18,7 @@ function main (cmdline)
     showstacks(stk)
     local message = ""
     for _, stack in ipairs(stk) do
-        message = message .. stack[#stack]
+        message = message .. stack:sub(-1)
     end
     print("Message: " .. message)
     print("Processing took: " .. (endtime - starttime) * 1000 .. "ms")
@@ -29,18 +31,19 @@ function parseinput (f)
     -- build the expression to match a line of crates. either blanks or [letter]
     -- blanks return nil as the captured value, letters return themselves
     local item = lpeg.P("   ") * lpeg.Cc(nil) + lpeg.P("[") * lpeg.C(lpeg.alpha) * lpeg.P("]")
-    local crateline = lpeg.Ct((item * lpeg.P(" "))^0 * item) * -1
+    local crateline = lpeg.Ct((item * lpeg.P(" "))^0 * item^-1) * -1
     local capnumber = lpeg.digit^1 / tonumber
     local countline = lpeg.Ct(lpeg.space^0 * (capnumber * lpeg.space^0)^1) * -1
     for l in f:lines() do
         crates = crateline:match(l)
         if crates then
-            -- put crates in stacks. Note stacks are reversed.
+            -- put crates in stacks.
             for i, v in pairs(crates) do
                 if not stacks[i] then
-                    stacks[i] = {}
+                    stacks[i] = v
+                else
+                    stacks[i] = stacks[i] .. v
                 end
-                table.insert(stacks[i], 1, v)
             end
         else
             -- should now match a line with stack counters
@@ -55,6 +58,10 @@ function parseinput (f)
             end
             break
         end
+    end
+    -- the stacks are now reverse-way around, flip them
+    for i, stack in pairs(stacks) do
+        stacks[i] = stacks[i]:reverse()
     end
     moves = {}
     moveline = lpeg.Ct(lpeg.P("move ") * lpeg.Cg(capnumber, "n")* lpeg.P(" from ") * lpeg.Cg(capnumber, "from") * lpeg.P(" to ") * lpeg.Cg(capnumber, "to")) * -1
@@ -80,19 +87,16 @@ end
 
 function do_moves_part2 (moves, stacks)
     for _, move in ipairs(moves) do
-        tempstack = {}
-        for _ = 1, move.n do
-            table.insert(tempstack, table.remove(stacks[move.from]))
-        end
-        for _ = 1, move.n do
-            table.insert(stacks[move.to],table.remove(tempstack))
-        end
+        print(("Moving %s from %s to %s"):format(move.n, move.from, move.to))
+        fromlen = #stacks[move.from]
+        stacks[move.to] = stacks[move.to] .. stacks[move.from]:sub(fromlen - move.n + 1)
+        stacks[move.from] = stacks[move.from]:sub(1, fromlen - move.n)
     end
 end
 
 function showstacks (stacks)
     for i, v in pairs(stacks) do
-        print("Stack["..i.."] = " .. table.concat(v, ","))
+        print("Stack["..i.."] = " .. v)
     end
 end
 
