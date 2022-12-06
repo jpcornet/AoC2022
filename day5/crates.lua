@@ -15,7 +15,6 @@ function main (cmdline)
     do_moves_part2(parsed.moves, stk)
     local endtime = chronos.nanotime()
     print("after moves:")
-    showstacks(stk)
     local message = ""
     for _, stack in ipairs(stk) do
         message = message .. stack:sub(-1)
@@ -79,15 +78,16 @@ end
 
 function do_moves_part1 (moves, stacks)
     for _, move in ipairs(moves) do
-        for _ = 1, move.n do
-            table.insert(stacks[move.to], table.remove(stacks[move.from]))
-        end
+        -- print(("Moving %s from %s to %s"):format(move.n, move.from, move.to))
+        fromlen = #stacks[move.from]
+        stacks[move.to] = stacks[move.to] .. stacks[move.from]:sub(fromlen - move.n + 1):reverse()
+        stacks[move.from] = stacks[move.from]:sub(1, fromlen - move.n)
     end
 end
 
 function do_moves_part2 (moves, stacks)
     for _, move in ipairs(moves) do
-        print(("Moving %s from %s to %s"):format(move.n, move.from, move.to))
+        -- print(("Moving %s from %s to %s"):format(move.n, move.from, move.to))
         fromlen = #stacks[move.from]
         stacks[move.to] = stacks[move.to] .. stacks[move.from]:sub(fromlen - move.n + 1)
         stacks[move.from] = stacks[move.from]:sub(1, fromlen - move.n)
