@@ -27,4 +27,10 @@ I used lua 5.4, with the "lpeg" and "chronos" luarocks additions installed. lpeg
 
 I consider this different from regular perl. Normally when I write perl I want it to be easy to maintain. This type of perl is write-only and may hurt your eyes when you look at it.
 
+Actually, the language that is used is "perl regexes". It could have been done with pcregrep except perl is easier to actually get the correct output. And the 14-character sequence would have been very tedious in pcregrep.
+
 Wrapped in a shell script to be able to set some perl runtime flags.
+
+* day 7 - Javascript
+
+Using node to turn it into a cli
