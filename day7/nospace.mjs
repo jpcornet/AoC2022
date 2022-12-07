@@ -92,7 +92,6 @@ function parseInput(path, useFs) {
         }
     }
     ).on('close', () => {
-        console.log("Finished parsing");
         useFs(filesys);
     });
 }
@@ -114,7 +113,7 @@ function setdirsize(path, fs) {
     for (let direntry of fs.files ) {
         totalsize += direntry.size
     }
-    console.log("Size just of files in directory %s is %d", path, totalsize)
+    // console.log("Size just of files in directory %s is %d", path, totalsize)
     // add sizes of subdirectories
     for (let subdir in fs.dirs) {
         totalsize += fs.dirs[subdir].size
@@ -122,9 +121,12 @@ function setdirsize(path, fs) {
     fs.size = totalsize
 }
 
+const startTime = process.hrtime()
+
 parseInput(process.argv[2], (fs) => {
+    const parseTook = process.hrtime(startTime)
+    console.log(`Parsing took ${parseTook[0] + parseTook[1] / 1e9} seconds`)
     walkDirs(fs, setdirsize)
-    console.log("Size of root dir is %d", fs.size)
 
     // part 1
     let sumsmall = 0
@@ -133,7 +135,9 @@ parseInput(process.argv[2], (fs) => {
             sumsmall += dir.size
         }
     })
+    const part1Took = process.hrtime(startTime)
     console.log("Sum of small directories is %d", sumsmall)
+    console.log(`Parsing and calculating part 1 took: ${part1Took[0] + part1Took[1] / 1e9} seconds`)
 
     // part 2
     const totalSize = 70000000
@@ -146,10 +150,11 @@ parseInput(process.argv[2], (fs) => {
         const toDelete = sizeNeeded - nowFree
         walkDirs(fs, (path, dir) => {
             if ( dir.size >= toDelete && dir.size < bestMatch ) {
-                console.log("Found candidate to delete %s with size %d", path, dir.size)
                 bestMatch = dir.size
             }
         })
+        const part2Took = process.hrtime(startTime)
         console.log("Best directory to delete has size %d", bestMatch)
+        console.log(`Parsing and calculating part 2 took: ${part2Took[0] + part2Took[1] / 1e9} seconds`)
     }
 })
