@@ -9,7 +9,7 @@ if ( process.argv.length != 3 ) {
     process.exit(-1);
 }
 
-function parseInput(path, useFs) {
+async function parseInput(path) {
     const rl = createInterface({
         input: createReadStream(path)
     });
@@ -26,7 +26,9 @@ function parseInput(path, useFs) {
         } else {
             throw err;
         }
-    }).on('line', (line) => {
+    })
+
+    for await (const line of rl) {
         if ( line[0] == '$' ) {
             // handle commands
             lsoutput = false
@@ -91,9 +93,7 @@ function parseInput(path, useFs) {
             process.exit(5);
         }
     }
-    ).on('close', () => {
-        useFs(filesys);
-    });
+    return filesys
 }
 
 function walkDirs (fs, cb) {
@@ -121,9 +121,10 @@ function setdirsize(path, fs) {
     fs.size = totalsize
 }
 
-const startTime = process.hrtime()
+async function main() {
+    const startTime = process.hrtime()
 
-parseInput(process.argv[2], (fs) => {
+    const fs = await parseInput(process.argv[2])
     const parseTook = process.hrtime(startTime)
     console.log(`Parsing took ${parseTook[0] + parseTook[1] / 1e9} seconds`)
     walkDirs(fs, setdirsize)
@@ -157,4 +158,6 @@ parseInput(process.argv[2], (fs) => {
         console.log("Best directory to delete has size %d", bestMatch)
         console.log(`Parsing and calculating part 2 took: ${part2Took[0] + part2Took[1] / 1e9} seconds`)
     }
-})
+}
+
+main()
