@@ -34,3 +34,8 @@ Wrapped in a shell script to be able to set some perl runtime flags.
 * day 7 - Javascript
 
 Using node to turn it into a cli
+
+* day 8 - Python
+
+Python 3.10
+
