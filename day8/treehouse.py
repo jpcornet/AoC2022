@@ -51,7 +51,7 @@ def visible_trees(forest, x, y, dx, dy) -> int:
         if forest[y][x] >= height:
             return count
 
-def best_scenic_tree(forest) -> (int, int, int):
+def best_scenic_tree(forest) -> list[int]:
     max_y = len(forest)
     max_x = len(forest[0])
     best_x, best_y, best_score = None, None, 0
