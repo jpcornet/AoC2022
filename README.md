@@ -39,3 +39,7 @@ Using node to turn it into a cli
 
 Python 3.10
 
+* day 9 - PHP
+
+Plain old PHP (version 8) without any fancy extensions
+
