@@ -8,7 +8,8 @@ function main() {
         exit(-1);
     }
     $input = file($argv[1]);
-    follow_tail($input);
+    follow_tail($input, 1);
+    follow_tail($input, 9);
 }
 
 function one_step(&$object, $direction) {
@@ -29,9 +30,11 @@ function sign ($x) {
     return ($x > 0) - ($x < 0);
 }
 
-function follow_tail($lines) {
+function follow_tail($lines, $knots) {
     $head = [0, 0];
-    $tail = [0, 0];
+    foreach (range(0, $knots - 1) as $i) {
+        $knot[$i] = [0, 0];
+    }
     $tailpos = [];
     $direction = [
         "U" => [0, -1],
@@ -49,19 +52,21 @@ function follow_tail($lines) {
         foreach (range(1,$steps) as $dummy) {
             # update position of head
             one_step($head, $dir);
-            print("Head is now at: " . $head[0] . "," . $head[1] . "\n");
-            # make tail follow head. Calculate distance
-            $dist = distance($head, $tail);
-            # is any distance > 1 ?
-            if ( abs($dist[0]) > 1 or abs($dist[1]) > 1 ) {
-                # move tail in direction of head, for both x and y
-                one_step($tail, [ sign($dist[0]), sign($dist[1]) ]);
-                print("Tail was too far away, now at " . $tail[0] . "," . $tail[1] . "\n");
+            # make knots follow head.
+            $prev = $head;
+            foreach (range(0, $knots - 1) as $i) {
+                $dist = distance($prev, $knot[$i]);
+                # is any distance > 1 ?
+                if ( abs($dist[0]) > 1 or abs($dist[1]) > 1 ) {
+                    # move tail in direction of head, for both x and y
+                    one_step($knot[$i], [ sign($dist[0]), sign($dist[1]) ]);
+                }
+                $prev = $knot[$i];
             }
-            @$tailpos[implode(",", $tail)]++;
+            @$tailpos[implode(",", $knot[$knots - 1])]++;
         }
     }
-    print("part 1, number of different positions of tail: " . count($tailpos) . "\n");
+    print("with " . $knots . " knots, number of different positions of tail: " . count($tailpos) . "\n");
 }
 
 main();
