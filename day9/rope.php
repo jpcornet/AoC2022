@@ -1,0 +1,67 @@
+#!/usr/bin/env php
+<?php
+
+function main() {
+    global $argv, $argc;
+    if ( $argc != 2 ) {
+        print("Provide input filename\n");
+        exit(-1);
+    }
+    $input = file($argv[1]);
+    follow_tail($input);
+}
+
+function one_step(&$object, $direction) {
+    foreach ([0, 1] as $i) {
+        $object[$i] += $direction[$i];
+    }
+}
+
+function distance($o1, $o2) {
+    $dist = [];
+    foreach ([0, 1] as $i) {
+        $dist[$i] = $o1[$i] - $o2[$i];
+    }
+    return $dist;
+}
+
+function sign ($x) {
+    return ($x > 0) - ($x < 0);
+}
+
+function follow_tail($lines) {
+    $head = [0, 0];
+    $tail = [0, 0];
+    $tailpos = [];
+    $direction = [
+        "U" => [0, -1],
+        "D" => [0, 1],
+        "L" => [-1, 0],
+        "R" => [1, 0],
+    ];
+    foreach ($lines as $line) {
+        list($dirstr, $steps) = explode(" ", rtrim($line));
+        $dir = $direction[$dirstr];
+        if ( !$dir ) {
+            print("Invalid direction $dirstr\n");
+            exit(1);
+        }
+        foreach (range(1,$steps) as $dummy) {
+            # update position of head
+            one_step($head, $dir);
+            print("Head is now at: " . $head[0] . "," . $head[1] . "\n");
+            # make tail follow head. Calculate distance
+            $dist = distance($head, $tail);
+            # is any distance > 1 ?
+            if ( abs($dist[0]) > 1 or abs($dist[1]) > 1 ) {
+                # move tail in direction of head, for both x and y
+                one_step($tail, [ sign($dist[0]), sign($dist[1]) ]);
+                print("Tail was too far away, now at " . $tail[0] . "," . $tail[1] . "\n");
+            }
+            @$tailpos[implode(",", $tail)]++;
+        }
+    }
+    print("part 1, number of different positions of tail: " . count($tailpos) . "\n");
+}
+
+main();
