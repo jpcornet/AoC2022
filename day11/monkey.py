@@ -2,6 +2,8 @@
 
 import sys
 import re
+import time
+import math
 
 def main():
     if not len(sys.argv) in (2,3):
@@ -9,23 +11,26 @@ def main():
         exit(-1)
     monkeys = parse_monkeys(sys.argv[1])
     panic = False
+    starttime = time.clock_gettime_ns(time.CLOCK_REALTIME)
     if len(sys.argv) == 3:
         if sys.argv[2] != 'panic':
             print("Just add 'panic' to increase panic level", file=sys.stderr)
             exit(-1)
         panic = True
-    for roundnum in range(0, 20 if not panic else 10000):
+    for roundnum in range(1, 21 if not panic else 10001):
         do_one_round(monkeys, panic)
-        if roundnum in (0, 19) or roundnum in range(999, 9999, 1000):
-            print(f"== After round {roundnum + 1} ==")
+        if roundnum in (1, 20) or roundnum in range(1000, 10000, 1000):
+            print(f"== After round {roundnum} ==")
             for i in range(0, len(monkeys)):
                 print(f"Monkey {i} inspected items {monkeys[i]['inspected']} times")
+    endtime = time.clock_gettime_ns(time.CLOCK_REALTIME)
     print("== after all rounds")
     inspected = [ m['inspected'] for m in monkeys ]
     for i in range(0, len(monkeys)):
         print(f"Monkey {i} inspected items {inspected[i]} items")
     inspected.sort(reverse=True)
     print(f"Most active monkeys had {inspected[0]} and {inspected[1]} items. Monkey business is {inspected[0] * inspected[1]}")
+    print(f"Rounds took: {(endtime - starttime) / 1e6}ms")
 
 def do_one_round(monkeys, is_panic):
     for monkeynum in range(0, len(monkeys)):
@@ -40,7 +45,18 @@ def do_one_round(monkeys, is_panic):
             monkeys[throw]["items"].append(item)
 
 def create_eval(evalstr, moditem):
-    return lambda old: eval(evalstr, None, {"old": old}) % moditem
+    plusop = re.fullmatch(r'old\s*\+\s*(\d+)', evalstr)
+    if plusop:
+        term = int(plusop[1])
+        return lambda old: (old + term) % moditem
+    multop = re.fullmatch(r'old\s*\*\s*(\d+)', evalstr)
+    if multop:
+        fact = int(multop[1])
+        return lambda old: (old * fact) % moditem
+    sqop = re.fullmatch(r'old\s*\*\s*old', evalstr)
+    if sqop:
+        return lambda old: (old * old) % moditem
+    raise ValueError(f"Parsing op {evalstr} not implemented")
 
 def create_test(divisible, throwtrue, throwfalse):
     return lambda item: throwtrue if item % divisible == 0 else throwfalse
@@ -72,7 +88,7 @@ def parse_monkeys(filename: str) -> list:
             "inspected": 0,
         }
         # keep track of product of all divisible tests
-        moditem *= monkeys[monkey_num]["divisible"]
+        moditem = math.lcm(moditem, monkeys[monkey_num]["divisible"])
     print(f"Product of all divisible tests is {moditem}")
     # now create callbacks for each monkey
     for m in monkeys:
