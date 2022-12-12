@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys
+import time
 
 class Hill:
     def __init__(self, filename):
@@ -139,13 +140,21 @@ def main():
     if len(sys.argv) != 2:
         print("Specify input file", file=sys.stderr)
         exit(-1)
+    starttime = time.clock_gettime_ns(time.CLOCK_REALTIME)
     hill = Hill(sys.argv[1])
+    parsetime = time.clock_gettime_ns(time.CLOCK_REALTIME)
     steps = hill.walk()
+    part1time = time.clock_gettime_ns(time.CLOCK_REALTIME)
     print(f"Number of steps to target: {steps}")
-    print(str(hill))
+    path1str = str(hill)
+    part2start = time.clock_gettime_ns(time.CLOCK_REALTIME)
     steps2 = hill.walkback()
+    part2time = time.clock_gettime_ns(time.CLOCK_REALTIME)
     print(f"Number of steps back from target to any start: {steps2}")
-    print(str(hill))
+    print(f"\nPath from start to target:\n{path1str}\nPart from target to closest starting pos:\n{str(hill)}")
+    print(f"Loading data took: {(parsetime - starttime) / 1000}µs")
+    print(f"Start to target path took: {(part1time - parsetime) / 1000}µs")
+    print(f"Target to any start took: {(part2time - part2start) / 1000}µs")
 
 if __name__ == "__main__":
     main()
