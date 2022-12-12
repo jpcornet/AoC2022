@@ -43,3 +43,15 @@ Python 3.10
 
 Plain old PHP (version 8) without any fancy extensions
 
+* day 10 -  Perl
+
+Plain old perl. No meticulously trimmed grass fields in sight.
+
+* day 11 - Python
+
+Yep, again python. No time to dive into another obscure language
+
+* day 12 - Python
+
+... and again. Adding some OO but that's it.
+
