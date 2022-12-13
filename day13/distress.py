@@ -28,20 +28,15 @@ class Mylist:
             other = Mylist([other])
         for i in range(0, len(self.l)):
             if i >= len(other.l):
-                print(f" XX {str(self)} > {str(other)} because the second is shorter at pos {i}")
                 return False
             if self.l[i] == other.l[i]:
                 continue
             if type(self.l[i]) == type(other.l[i]):
-                print(f" XX doing sub-comparison on {str(self.l[i])} < {str(other.l[i])}")
                 return self.l[i] < other.l[i]
             if type(self.l[i]) == int:
-                print(f" XX doing sub-comparison on int {self.l[i]} < {str(other.l[i])}")
                 return Mylist([self.l[i]]) < other.l[i]
             else:
-                print(f" XX doing sub-comparison on {str(self.l[i])} < int {other.l[i]}")
                 return self.l[i] < Mylist([other.l[i]])
-        print(f" XX true if length of {str(self)} < length of {str(other)}")
         return len(self.l) < len(other.l)
 
     def __str__(self):
@@ -66,11 +61,27 @@ def main():
     sum = 0
     for i in range(0, len(pairs)):
         if pairs[i][0] < pairs[i][1]:
-            print(f"Pair {i+1} are in the correct order. Pairs are:\n  {pairs[i][0]}\n  {pairs[i][1]}")
             sum += i+1
-        else:
-            print(f"Pair {i+1} are NOT in correct order. Pairs are:\n     {pairs[i][0]}\n     {pairs[i][1]}")
     print(f"Sum of correct orders: {sum}")
+
+    # convert to flat list and sort it
+    flat = []
+    for p in pairs:
+        flat += p
+    
+    # add divider signals
+    dividers = [ Mylist([[2]]), Mylist([[6]]) ]
+    flat += dividers
+    print("Sorting flat list")
+    flat.sort()
+
+    decoder = 1
+    for i in range(0, len(flat)):
+        print(f"{i+1}: {str(flat[i])}")
+        if flat[i] in dividers:
+            print("^^^ divider")
+            decoder *= i+1
+    print(f"Decoder: {decoder}")
 
 if __name__ == "__main__":
     main()
