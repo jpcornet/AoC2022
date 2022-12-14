@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Item uint8
@@ -109,9 +110,7 @@ func parse_input(filename string, pyramid_top int) Field {
 }
 
 func draw_rocks(field Field, lines []Line) {
-	fmt.Printf("Drawing on field xoffset=%d, yoffset=%d, xsize=%d, ysize=%d\n", field.xoffset, field.yoffset, field.xsize, field.ysize)
 	for _, l := range lines {
-		fmt.Printf("Drawing line %v\n", l)
 		pos := l[0]
 		field.space[pos.y-field.yoffset][pos.x-field.xoffset] = Rock
 		for i := 1; i < len(l); i++ {
@@ -181,16 +180,21 @@ func main() {
 	if len(os.Args) != 2 {
 		panic("Provide input file")
 	}
+	starttime := time.Now()
 	field := parse_input(os.Args[1], 0)
+	parsetime := time.Now()
 	sand := 0
 	for drop_sand(field, Coord{500, 0}) {
 		sand += 1
 	}
+	part1time := time.Now()
 	fmt.Printf("Number of sand dropped: %d\n", sand)
 	show_field(field)
 
 	// for part 2, read input again this time adding the extra space for the entire pyramid
+	start2time := time.Now()
 	field = parse_input(os.Args[1], 500)
+	parse2time := time.Now()
 	// draw the extra bottom line
 	bottom := []Coord{{field.xoffset, field.yoffset + field.ysize - 1}, {field.xoffset + field.xsize - 1, field.yoffset + field.ysize - 1}}
 	bottomlines := []Line{bottom}
@@ -199,6 +203,9 @@ func main() {
 	for drop_sand(field, Coord{500, 0}) {
 		sand += 1
 	}
+	part2time := time.Now()
 	show_field(field)
 	fmt.Printf("Number of sand part 2: %d\n", sand)
+	fmt.Printf("part1 took: parsing=%s pooring sand=%s\n", parsetime.Sub(starttime), part1time.Sub(parsetime))
+	fmt.Printf("part2 took: parsing=%s pooring sand=%s\n", parse2time.Sub(start2time), part2time.Sub(parse2time))
 }
