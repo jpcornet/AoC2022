@@ -9,15 +9,17 @@ def main():
     if not len(sys.argv) in (2,3):
         print("Give input file", file=sys.stderr)
         exit(-1)
-    monkeys = parse_monkeys(sys.argv[1])
     panic = False
-    starttime = time.clock_gettime_ns(time.CLOCK_REALTIME)
     if len(sys.argv) == 3:
         if sys.argv[2] != 'panic':
             print("Just add 'panic' to increase panic level", file=sys.stderr)
             exit(-1)
         panic = True
+    monkeys = parse_monkeys(sys.argv[1], panic=panic)
+    starttime = time.clock_gettime_ns(time.CLOCK_REALTIME)
     for roundnum in range(1, 21 if not panic else 10001):
+        maxmonkey = max([ max(m["items"]) if m["items"] else 0 for m in monkeys ])
+        print(f"== Starting round {roundnum}. Max item value is {maxmonkey}")
         do_one_round(monkeys, panic)
         if roundnum in (1, 20) or roundnum in range(1000, 10000, 1000):
             print(f"== After round {roundnum} ==")
@@ -48,20 +50,35 @@ def create_eval(evalstr, moditem):
     plusop = re.fullmatch(r'old\s*\+\s*(\d+)', evalstr)
     if plusop:
         term = int(plusop[1])
-        return lambda old: (old + term) % moditem
+        if moditem:
+            return lambda old: (old + term) % moditem
+        else:
+            return lambda old: old + term
     multop = re.fullmatch(r'old\s*\*\s*(\d+)', evalstr)
     if multop:
         fact = int(multop[1])
-        return lambda old: (old * fact) % moditem
+        if moditem:
+            return lambda old: (old * fact) % moditem
+        else:
+            return lambda old: old * fact
     sqop = re.fullmatch(r'old\s*\*\s*old', evalstr)
     if sqop:
-        return lambda old: (old * old) % moditem
+        if moditem:
+            return lambda old: (old * old) % moditem
+        else:
+            return lambda old: old * old
+    dblop = re.fullmatch(r'old\s*\+\s*old', evalstr)
+    if dblop:
+        if moditem:
+            return lambda old: (old + old) % moditem
+        else:
+            return lambda old: old + old
     raise ValueError(f"Parsing op {evalstr} not implemented")
 
 def create_test(divisible, throwtrue, throwfalse):
     return lambda item: throwtrue if item % divisible == 0 else throwfalse
 
-def parse_monkeys(filename: str) -> list:
+def parse_monkeys(filename: str, panic=False) -> list:
     input = open(filename, "r").read()
     # regex to parse one monkey
     monkey_re = re.compile(r'''
@@ -73,7 +90,8 @@ def parse_monkeys(filename: str) -> list:
         \s+If\ false:\ throw\ to\ monkey\ (?P<falsedest>\d+)\ *\n+
     ''', re.VERBOSE)
     monkeys = []
-    moditem = 1
+    # init at 3 because... in part 1 we still divide by 3. Which is impossible to do in a non-multiple-of-3 modulo.
+    moditem = 1 if panic else 3
     for m_monkey in monkey_re.finditer(input):
         monkey_num = int(m_monkey["monkey"])
         while len(monkeys) <= monkey_num:
@@ -92,7 +110,7 @@ def parse_monkeys(filename: str) -> list:
     print(f"Product of all divisible tests is {moditem}")
     # now create callbacks for each monkey
     for m in monkeys:
-        m["operation"] = create_eval(m["opstr"], moditem)
+        m["operation"] = create_eval(m["opstr"], moditem if panic else None)
         m["test"] = create_test(m["divisible"], m["truedest"], m["falsedest"])
     return monkeys
 
