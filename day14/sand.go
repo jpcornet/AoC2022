@@ -82,9 +82,9 @@ func parse_input(filename string, pyramid_top int) Field {
 	if pyramid_top != 0 {
 		// assume the entire cave is going to fill up like a pyramid, and add 2 y lines
 		maxy += 2
-		// calculate new "worst case" minx, maxx around pyramid top, and add 10 more for good measure
-		wc_minx := pyramid_top - maxy - 10
-		wc_maxx := pyramid_top + maxy + 10
+		// calculate new "worst case" minx, maxx around pyramid top, and add 1 more for good measure
+		wc_minx := pyramid_top - maxy - 1
+		wc_maxx := pyramid_top + maxy + 1
 		if wc_minx < minx {
 			minx = wc_minx
 		}
