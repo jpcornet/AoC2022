@@ -23,6 +23,8 @@ type Field struct {
 	xsize   int
 	ysize   int
 	space   [][]Item
+	grains  int
+	part1   int
 }
 
 type Coord struct {
@@ -33,33 +35,36 @@ type Coord struct {
 type Line []Coord
 
 func parse_input(filename string, pyramid_top int) Field {
+	starttime := time.Now()
 	inputstr, err := os.ReadFile(filename)
 	if err != nil {
 		panic(err)
 	}
 	inputlines := strings.Split(string(inputstr[:]), "\n")
-	var lines []Line
+	// remove last empty line
+	if len(inputlines[len(inputlines)-1]) == 0 {
+		inputlines = inputlines[0 : len(inputlines)-1]
+	}
+	linesplittime := time.Now()
+	lines := make([]Line, 0, 500)
 	minx := math.MaxInt
 	maxx := math.MinInt
 	maxy := math.MinInt
 	for _, linestr := range inputlines {
-		if len(linestr) == 0 {
-			continue
-		}
-		var newline Line
+		newline := make(Line, 0, 40)
 		coords := strings.Split(linestr, " -> ")
 		for _, coord := range coords {
-			if len(coord) == 0 {
-				continue
+			strx, stry, ok := strings.Cut(coord, ",")
+			if !ok {
+				panic(fmt.Sprintf("No , in coord %s", coord))
 			}
-			strxy := strings.Split(coord, ",")
 			var c Coord
 			var err error
-			c.x, err = strconv.Atoi(strxy[0])
+			c.x, err = strconv.Atoi(strx)
 			if err != nil {
 				panic(err)
 			}
-			c.y, err = strconv.Atoi(strxy[1])
+			c.y, err = strconv.Atoi(stry)
 			if err != nil {
 				panic(err)
 			}
@@ -93,6 +98,7 @@ func parse_input(filename string, pyramid_top int) Field {
 		}
 	}
 
+	lineparsetime := time.Now()
 	var field Field
 	field.xoffset = minx
 	field.yoffset = 0
@@ -101,15 +107,17 @@ func parse_input(filename string, pyramid_top int) Field {
 	field.space = make([][]Item, field.ysize)
 	for y := range field.space {
 		field.space[y] = make([]Item, field.xsize)
-		for x := range field.space[y] {
-			field.space[y][x] = Air
-		}
 	}
-	draw_rocks(field, lines)
+	alloctime := time.Now()
+	draw_rocks(&field, lines)
+	field.grains = 0
+	drawtime := time.Now()
+	fmt.Printf("Reading to lines took: %s, parsing lines took: %s, alloc field took: %s, drawing rocks took: %s\n",
+		linesplittime.Sub(starttime), lineparsetime.Sub(linesplittime), alloctime.Sub(lineparsetime), drawtime.Sub(alloctime))
 	return field
 }
 
-func draw_rocks(field Field, lines []Line) {
+func draw_rocks(field *Field, lines []Line) {
 	for _, l := range lines {
 		pos := l[0]
 		field.space[pos.y-field.yoffset][pos.x-field.xoffset] = Rock
@@ -137,27 +145,29 @@ func sign(a int) int {
 }
 
 // returns false if the sand falls through the field
-func drop_sand(f Field, s Coord) bool {
+func drop_sand(f *Field, s Coord) {
 	s.x -= f.xoffset
 	s.y -= f.yoffset
-	for f.space[s.y][s.x] == Air {
-		if s.y+1 == f.ysize {
-			return false
-		}
-		if f.space[s.y+1][s.x] == Air {
-			s.y += 1
-		} else if f.space[s.y+1][s.x-1] == Air {
-			s.y += 1
-			s.x -= 1
-		} else if f.space[s.y+1][s.x+1] == Air {
-			s.y += 1
-			s.x += 1
-		} else {
-			f.space[s.y][s.x] = Sand
-			return true
-		}
+	drop_sand_off(f, s)
+}
+
+func drop_sand_off(f *Field, s Coord) {
+	// if this point is already occupied, continue
+	if f.space[s.y][s.x] != Air {
+		return
 	}
-	return false
+
+	// did we reach the part1 dept?
+	if f.part1 == 0 && s.y == f.ysize-2 {
+		f.part1 = f.grains
+	}
+
+	drop_sand_off(f, Coord{s.x, s.y + 1})     // try dropping below
+	drop_sand_off(f, Coord{s.x - 1, s.y + 1}) // try dropping to the left
+	drop_sand_off(f, Coord{s.x + 1, s.y + 1}) // try dropping to the right
+
+	f.space[s.y][s.x] = Sand
+	f.grains++
 }
 
 func show_field(f Field) {
@@ -181,31 +191,17 @@ func main() {
 		panic("Provide input file")
 	}
 	starttime := time.Now()
-	field := parse_input(os.Args[1], 0)
-	parsetime := time.Now()
-	sand := 0
-	for drop_sand(field, Coord{500, 0}) {
-		sand += 1
-	}
-	part1time := time.Now()
-	fmt.Printf("Number of sand dropped: %d\n", sand)
-	show_field(field)
-
-	// for part 2, read input again this time adding the extra space for the entire pyramid
-	start2time := time.Now()
-	field = parse_input(os.Args[1], 500)
-	parse2time := time.Now()
+	field := parse_input(os.Args[1], 500)
 	// draw the extra bottom line
 	bottom := []Coord{{field.xoffset, field.yoffset + field.ysize - 1}, {field.xoffset + field.xsize - 1, field.yoffset + field.ysize - 1}}
 	bottomlines := []Line{bottom}
-	draw_rocks(field, bottomlines)
-	sand = 0
-	for drop_sand(field, Coord{500, 0}) {
-		sand += 1
-	}
+	draw_rocks(&field, bottomlines)
+	parsetime := time.Now()
+	drop_sand(&field, Coord{500, 0})
 	part2time := time.Now()
 	show_field(field)
-	fmt.Printf("Number of sand part 2: %d\n", sand)
-	fmt.Printf("part1 took: parsing=%s pooring sand=%s\n", parsetime.Sub(starttime), part1time.Sub(parsetime))
-	fmt.Printf("part2 took: parsing=%s pooring sand=%s\n", parse2time.Sub(start2time), part2time.Sub(parse2time))
+
+	fmt.Printf("Number of sand part 1: %d\n", field.part1)
+	fmt.Printf("Number of sand part 2: %d\n", field.grains)
+	fmt.Printf("took: parsing=%s pouring sand=%s\n", parsetime.Sub(starttime), part2time.Sub(parsetime))
 }
