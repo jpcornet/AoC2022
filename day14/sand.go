@@ -31,7 +31,7 @@ type Coord struct {
 
 type Line []Coord
 
-func parse_input(filename string) Field {
+func parse_input(filename string, pyramid_top int) Field {
 	inputstr, err := os.ReadFile(filename)
 	if err != nil {
 		panic(err)
@@ -78,6 +78,19 @@ func parse_input(filename string) Field {
 	// Make sure enough room around the edges is free
 	minx -= 1
 	maxx += 1
+	if pyramid_top != 0 {
+		// assume the entire cave is going to fill up like a pyramid, and add 2 y lines
+		maxy += 2
+		// calculate new "worst case" minx, maxx around pyramid top, and add 10 more for good measure
+		wc_minx := pyramid_top - maxy - 10
+		wc_maxx := pyramid_top + maxy + 10
+		if wc_minx < minx {
+			minx = wc_minx
+		}
+		if wc_maxx > maxx {
+			maxx = wc_maxx
+		}
+	}
 
 	var field Field
 	field.xoffset = minx
@@ -168,12 +181,24 @@ func main() {
 	if len(os.Args) != 2 {
 		panic("Provide input file")
 	}
-	field := parse_input(os.Args[1])
-	show_field(field)
+	field := parse_input(os.Args[1], 0)
 	sand := 0
 	for drop_sand(field, Coord{500, 0}) {
 		sand += 1
 	}
 	fmt.Printf("Number of sand dropped: %d\n", sand)
 	show_field(field)
+
+	// for part 2, read input again this time adding the extra space for the entire pyramid
+	field = parse_input(os.Args[1], 500)
+	// draw the extra bottom line
+	bottom := []Coord{{field.xoffset, field.yoffset + field.ysize - 1}, {field.xoffset + field.xsize - 1, field.yoffset + field.ysize - 1}}
+	bottomlines := []Line{bottom}
+	draw_rocks(field, bottomlines)
+	sand = 0
+	for drop_sand(field, Coord{500, 0}) {
+		sand += 1
+	}
+	show_field(field)
+	fmt.Printf("Number of sand part 2: %d\n", sand)
 }
