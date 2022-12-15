@@ -165,7 +165,6 @@ func part1(sensors []Sensor, y int) int {
 func scan_line(sensors []Sensor, y int, maxx int) ([]int, int) {
 	snear := filter_sensors(sensors, y)
 	leftpos := math.MinInt
-	var prev_s Sensor
 	var gap []int
 	min_overlap := math.MaxInt
 	for true {
@@ -174,18 +173,7 @@ func scan_line(sensors []Sensor, y int, maxx int) ([]int, int) {
 			break
 		}
 		if start <= leftpos && leftpos-start < min_overlap {
-			// overlap is only determined to "skip ahead" to an area where there is no overlap, with y increasing
-			// if both sensors are in the positive y direction, we can make a way bigger estimate of the supposed "overlap"
-			this_overlap := leftpos - start
-			if s.y > y && prev_s.y > y {
-				// both sensors are in y direction. Now assume sensors have a triangular shape and calculate overlap again.
-				prev_end := prev_s.x + prev_s.y + prev_s.dist - y
-				s_start := s.x - (s.y + s.dist - y)
-				this_overlap = prev_end + 1 - s_start
-			}
-			if this_overlap < min_overlap {
-				min_overlap = this_overlap
-			}
+			min_overlap = leftpos - start
 		}
 		gapstart := leftpos
 		gapend := start - 1
@@ -199,7 +187,6 @@ func scan_line(sensors []Sensor, y int, maxx int) ([]int, int) {
 			gap = append(gap, gapstart, gapend)
 		}
 		leftpos = end + 1
-		prev_s = *s
 	}
 	if min_overlap == math.MaxInt {
 		min_overlap = -1
