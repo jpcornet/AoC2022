@@ -72,7 +72,6 @@ func leftmostsensor(sensors []Sensor, x int, y int) (*Sensor, int, int) {
 		ssize := s.dist - intabs(s.y-y)
 		// if ssize is 0 or negative, this sensor does not help. Should not happen?
 		if ssize <= 0 {
-			fmt.Printf("Hm, skipping sensor %v on line %d\n", s, y)
 			continue
 		}
 		// calculate maxiomium x coord on y line this sensor excludes
@@ -84,18 +83,15 @@ func leftmostsensor(sensors []Sensor, x int, y int) (*Sensor, int, int) {
 		// calculate minimum x coord on y line this sensor excludes
 		my_xmin := s.x - ssize
 		if found == nil || my_xmin < influence {
-			fmt.Printf("Best sensor so far: %v, starting at %d\n", s, my_xmin)
 			found = &sensors[i]
 			influence = my_xmin
 			end = my_xmax
-		} else {
-			fmt.Printf("Sensor %v starting at %d is more to the right\n", s, my_xmin)
 		}
 	}
 	return found, influence, end
 }
 
-func part1(sensors []Sensor, y int) {
+func part1(sensors []Sensor, y int) int {
 	snear := filter_sensors(sensors, y)
 	// count number of exclude positions
 	excludepos := 0
@@ -106,20 +102,56 @@ func part1(sensors []Sensor, y int) {
 		if s == nil {
 			break
 		}
-		fmt.Printf("Found sensor %v after %d between %d-%d\n", s, leftpos, start, end)
 		if start < leftpos {
-			fmt.Printf("This sensor overlaps with previous found sensor, not counting range %d-%d\n", start, leftpos)
 			start = leftpos
 		}
 		excludepos += end - start + 1
 		// is the current sensor's beacon on this line and in this range?
 		if s.beacony == y && s.beaconx >= start && s.beaconx <= end {
-			fmt.Printf("  The current sensor's beacon at %d,%d is in this range\n", s.beaconx, s.beacony)
 			excludepos--
 		}
 		leftpos = end + 1
 	}
-	fmt.Printf("total exclude: %d\n", excludepos)
+	return excludepos
+}
+
+func scan_line(sensors []Sensor, y int, maxx int) []int {
+	snear := filter_sensors(sensors, y)
+	leftpos := math.MinInt
+	var gap []int
+	for true {
+		s, start, end := leftmostsensor(snear, leftpos, y)
+		if s == nil {
+			break
+		}
+		gapstart := leftpos
+		gapend := start - 1
+		if gapstart < 0 {
+			gapstart = 0
+		}
+		if gapend > maxx {
+			gapend = maxx
+		}
+		if gapstart <= gapend {
+			gap = append(gap, gapstart, gapend)
+		}
+		leftpos = end + 1
+	}
+	return gap
+}
+
+func part2(sensors []Sensor, maxy int) int {
+	for y := 0; y <= maxy; y++ {
+		line_gap := scan_line(sensors, y, maxy)
+		if line_gap != nil {
+			if line_gap[0] == line_gap[1] {
+				return line_gap[0]*4000000 + y
+			} else {
+				fmt.Printf("On line %d, gaps at: %v\n", y, line_gap)
+			}
+		}
+	}
+	return -1
 }
 
 func main() {
@@ -137,6 +169,13 @@ func main() {
 		}
 	}
 	parsetime := time.Now()
-	part1(sensors, y)
-	fmt.Printf("Took: %s\n", parsetime.Sub(starttime))
+	answ := part1(sensors, y)
+	part1time := time.Now()
+	answ2 := part2(sensors, y*2)
+	part2time := time.Now()
+	fmt.Printf("Part 1, total excluded on line %d is: %d\n", y, answ)
+	fmt.Printf("Part 2, frequency of single gap: %d\n", answ2)
+	fmt.Printf("Parsing took: %s\n", parsetime.Sub(starttime))
+	fmt.Printf("Part1 took: %s\n", part1time.Sub(parsetime))
+	fmt.Printf("Part2 took: %s\n", part2time.Sub(part1time))
 }
