@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -37,17 +36,65 @@ func parse_input(filename string) []Sensor {
 		inputlines = inputlines[0 : len(inputlines)-1]
 	}
 	sensors := make([]Sensor, 0, 500)
-	sensor_line_re := regexp.MustCompile(`^Sensor at x=(-?\d+), y=(-?\d+): closest beacon is at x=(-?\d+), y=(-?\d+)$`)
 	for _, linestr := range inputlines {
-		match := sensor_line_re.FindStringSubmatchIndex(linestr)
-		if match == nil {
-			panic(fmt.Sprintf("Cannot parse line: %s\n", linestr))
+		var err error
+		var sx, sy, bx, by int
+		startstring := "Sensor at x="
+		if !strings.HasPrefix(linestr, startstring) {
+			panic("Invalid input 1")
 		}
-		sx, _ := strconv.Atoi(linestr[match[2]:match[3]])
-		sy, _ := strconv.Atoi(linestr[match[4]:match[5]])
-		bx, _ := strconv.Atoi(linestr[match[6]:match[7]])
-		by, _ := strconv.Atoi(linestr[match[8]:match[9]])
+		num_start := len(startstring)
+		sep_at := strings.IndexRune(linestr[num_start:], ',')
+		if sep_at == -1 {
+			panic("Invalid input 1b")
+		}
+		sx, err = strconv.Atoi(linestr[num_start : num_start+sep_at])
+		if err != nil {
+			panic(err)
+		}
+
+		commaystring := ", y="
+		num_start += sep_at
+		if !strings.HasPrefix(linestr[num_start:], ", y=") {
+			panic("Invalid input 2")
+		}
+		num_start += len(commaystring)
+		sep_at = strings.IndexRune(linestr[num_start:], ':')
+		if sep_at == -1 {
+			panic("Invalid input 2b")
+		}
+		sy, err = strconv.Atoi(linestr[num_start : num_start+sep_at])
+		if err != nil {
+			panic(err)
+		}
+
+		beaconstring := ": closest beacon is at x="
+		num_start += sep_at
+		if !strings.HasPrefix(linestr[num_start:], beaconstring) {
+			panic("Invalid input 3")
+		}
+		num_start += len(beaconstring)
+		sep_at = strings.IndexRune(linestr[num_start:], ',')
+		if sep_at == -1 {
+			panic("Invalid input 3b")
+		}
+		bx, err = strconv.Atoi(linestr[num_start : num_start+sep_at])
+		if err != nil {
+			panic(err)
+		}
+
+		num_start += sep_at
+		if !strings.HasPrefix(linestr[num_start:], commaystring) {
+			panic("Invalid input 4")
+		}
+		num_start += len(commaystring)
+		by, err = strconv.Atoi(linestr[num_start:])
+		if err != nil {
+			panic(err)
+		}
+
 		sensors = append(sensors, Sensor{x: sx, y: sy, beaconx: bx, beacony: by, dist: intabs(sx-bx) + intabs(sy-by)})
+		//fmt.Printf("Parsed sensor: %v\n", sensors[len(sensors)-1])
 	}
 	return sensors
 }
