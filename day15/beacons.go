@@ -115,14 +115,18 @@ func part1(sensors []Sensor, y int) int {
 	return excludepos
 }
 
-func scan_line(sensors []Sensor, y int, maxx int) []int {
+func scan_line(sensors []Sensor, y int, maxx int) ([]int, int) {
 	snear := filter_sensors(sensors, y)
 	leftpos := math.MinInt
 	var gap []int
+	min_overlap := math.MaxInt
 	for true {
 		s, start, end := leftmostsensor(snear, leftpos, y)
 		if s == nil {
 			break
+		}
+		if start <= leftpos && leftpos-start < min_overlap {
+			min_overlap = leftpos - start
 		}
 		gapstart := leftpos
 		gapend := start - 1
@@ -137,18 +141,28 @@ func scan_line(sensors []Sensor, y int, maxx int) []int {
 		}
 		leftpos = end + 1
 	}
-	return gap
+	if min_overlap == math.MaxInt {
+		min_overlap = -1
+	}
+	return gap, min_overlap
 }
 
 func part2(sensors []Sensor, maxy int) int {
-	for y := 0; y <= maxy; y++ {
-		line_gap := scan_line(sensors, y, maxy)
+	for y := 0; y <= maxy; {
+		line_gap, min_overlap := scan_line(sensors, y, maxy)
 		if line_gap != nil {
 			if line_gap[0] == line_gap[1] {
 				return line_gap[0]*4000000 + y
 			} else {
 				fmt.Printf("On line %d, gaps at: %v\n", y, line_gap)
 			}
+		}
+		if min_overlap >= 2 {
+			// skip the next overlap/2 lines
+			y += min_overlap >> 1
+		} else {
+			// no significant overlap, just take next line
+			y++
 		}
 	}
 	return -1
