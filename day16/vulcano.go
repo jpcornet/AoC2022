@@ -40,15 +40,22 @@ type RValve struct {
 	tunnel   []TunnelElem
 }
 type ReducedVulcano struct {
-	valvenr       map[string]Valvenr
-	valves        []RValve
-	workingvalves Valvenr
+	valvenr map[string]Valvenr
+	valves  []RValve
 }
 
 type Solution struct {
 	pressure int
 	timeleft int
 	path     Path
+}
+
+type DuoSolution struct {
+	pressure  int
+	timeleft1 int
+	timeleft2 int
+	path1     Path
+	path2     Path
 }
 
 func parse_input(filename string) Vulcano {
@@ -133,15 +140,11 @@ func reduce_vulcano(vl Vulcano, start string) ReducedVulcano {
 	var rv ReducedVulcano
 	rv.valvenr = make(map[string]Valvenr)
 	rv.valves = make([]RValve, 0, 20)
-	rv.workingvalves = 0
 	// put all valves with non-zero flowrate in the reduced vulcano, plus the start valve
 	for name, v := range vl.valves {
 		if v.flowrate != 0 || name == start {
 			rv.valvenr[name] = Valvenr(len(rv.valves))
 			rv.valves = append(rv.valves, RValve{name: name, flowrate: v.flowrate})
-		}
-		if v.flowrate != 0 {
-			rv.workingvalves++
 		}
 	}
 	// now map the tunnels between these valves
@@ -159,7 +162,7 @@ func max_extra_pressure(sol Solution, rv ReducedVulcano) int {
 			already_open[rv&^opened] = true
 		}
 	}
-	pressures := make([]int, 0, rv.workingvalves)
+	pressures := make([]int, 0, len(rv.valves))
 	for nr, v := range rv.valves {
 		is_open, _ := already_open[Valvenr(nr)]
 		if !is_open && v.flowrate > 0 {
@@ -275,7 +278,7 @@ func possible_next_steps(candidate Solution, rv ReducedVulcano, best *Solution) 
 }
 
 // find max flow using breadth-first parallel search
-func findmaxflow1(rv ReducedVulcano, start string, initial_timeleft int) (int, Path) {
+func findmaxflow1(rv ReducedVulcano, start string, initial_timeleft int) (int, string) {
 	// collect all possible partial solutions here, sorted by pressure
 	partial_solutions := make([]Solution, 0, 20)
 	partial_solutions = append(partial_solutions, Solution{
@@ -309,85 +312,7 @@ func findmaxflow1(rv ReducedVulcano, start string, initial_timeleft int) (int, P
 			best_solution = partial_solutions[len(partial_solutions)-1]
 		}
 	}
-	fmt.Printf("Solution to part 1: %s\n", solution_str(rv, best_solution))
-	fmt.Printf("partial solutions array: %d\n", cap(partial_solutions))
-	return best_solution.pressure, best_solution.path
-}
-
-// very ugly and slow recursive solution, doing depth-first search
-func maxflow(vulcano Vulcano, pos string, timeleft int, path []string, pressure int, visited Visited) (int, []string) {
-	cur_max := pressure
-	cur_bestpath := path
-	if timeleft <= 0 {
-		// no time left, cannot do anything
-		return pressure, path
-	}
-	// we never explicitly close valves, just reset them to current state when we're not explicitly opening it
-	valve_state := vulcano.is_open[pos]
-	defer func() {
-		vulcano.is_open[pos] = valve_state
-	}()
-	// keep track of which nodes we visited between opening valves
-	visited[pos] = true
-	defer func() {
-		visited[pos] = false
-	}()
-	// try going to every connected tunnel, with or without opening the valve
-	for i := 0; i <= 1; i++ {
-		openit := i == 0
-		extratime := 0
-		my_visited := visited
-		my_path := append(copystrarray(path), pos)
-		my_pressure := pressure
-		if openit {
-			if vulcano.is_open[pos] {
-				// valve is already open, so we visited this node already. Try just walking past it...
-				continue
-			}
-			if vulcano.valves[pos].flowrate == 0 {
-				// no point opening this valve, flow rate is 0
-				continue
-			}
-			// open the valve. This costs time
-			vulcano.is_open[pos] = true
-			my_path = append(my_path, fmt.Sprintf("Open-%s", pos))
-			extratime = 1
-			// calculate pressure released by opening this valve
-			my_pressure = pressure + (timeleft-extratime)*vulcano.valves[pos].flowrate
-			// since we opened a valve, start a new "visited" map
-			my_visited = make(Visited)
-			my_visited[pos] = true
-			// fmt.Printf("Time left: %d. Opened valve %s, extra pressure is %d\n", timeleft-extratime, pos, my_pressure-pressure)
-		} else {
-			vulcano.is_open[pos] = valve_state
-		}
-		// if all valves are open, we cannot do anything
-		all_open := true
-		for name, v := range vulcano.valves {
-			if v.flowrate != 0 && !vulcano.is_open[name] {
-				all_open = false
-				break
-			}
-		}
-		if all_open {
-			// fmt.Printf("Time left: %d. Doing nothing at valve %s\n", timeleft-extratime, pos)
-			// fmt.Printf("   all open, path=%v is_open=%v\n", my_path, vulcano.is_open)
-			return my_pressure, append(my_path, "nothing")
-		}
-		for _, nextpos := range vulcano.valves[pos].tunnel {
-			if my_visited[nextpos] {
-				continue
-			}
-			// fmt.Printf("Time left: %d. Try going to pos %s, pressure is %d\n", timeleft-1-extratime, nextpos, my_pressure)
-			this_pressure, this_path := maxflow(vulcano, nextpos, timeleft-1-extratime, my_path, my_pressure, my_visited)
-			if this_pressure >= cur_max {
-				cur_max = this_pressure
-				cur_bestpath = copystrarray(this_path)
-				fmt.Printf("Time left: %d. Solution: pressure=%d, path=%v\n", timeleft-extratime, cur_max, cur_bestpath)
-			}
-		}
-	}
-	return cur_max, cur_bestpath
+	return best_solution.pressure, solution_str(rv, best_solution)
 }
 
 func main() {
@@ -400,8 +325,8 @@ func main() {
 	parsetime := time.Now()
 	fmt.Printf("Got: %v\n", rvulcano)
 	fmt.Printf("Parse took: %s\n", parsetime.Sub(starttime))
-	flow, path := findmaxflow1(rvulcano, "AA", 30)
+	flow, solution := findmaxflow1(rvulcano, "AA", 30)
 	part1time := time.Now()
-	fmt.Printf("maxflow pressure=%d path=%v\n", flow, path)
+	fmt.Printf("maxflow pressure=%d: %s\n", flow, solution)
 	fmt.Printf("part1 took: %s\n", part1time.Sub(parsetime))
 }
