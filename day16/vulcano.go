@@ -149,16 +149,9 @@ func reduce_vulcano(vl Vulcano, start string) ReducedVulcano {
 }
 
 func max_extra_pressure(sol Solution, rv ReducedVulcano) int {
-	already_open := make(map[Valvenr]bool)
-	// record valves that are already open
-	for _, rv := range sol.path {
-		if rv&opened == opened {
-			already_open[rv&^opened] = true
-		}
-	}
 	pressures := make([]int, 0, len(rv.valves))
 	for nr, v := range rv.valves {
-		is_open, _ := already_open[Valvenr(nr)]
+		is_open := sol.is_open[nr]
 		if !is_open && v.flowrate > 0 {
 			pressures = append(pressures, v.flowrate)
 		}
