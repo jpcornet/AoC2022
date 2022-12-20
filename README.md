@@ -55,3 +55,19 @@ Yep, again python. No time to dive into another obscure language
 
 ... and again. Adding some OO but that's it.
 
+* day 13 - Python
+
+again. Partly because the data structures could be parsed by python eval().
+
+* day 14 - Go
+
+again. Needed speed.
+
+* day 15 - Go
+
+Needed even more speed.
+
+* day 16 - Go
+
+This took some time to get right... and needed the speed.
+
