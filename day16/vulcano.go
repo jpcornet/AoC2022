@@ -189,49 +189,66 @@ func max_extra_pressure(sol Solution, rv ReducedVulcano) int {
 	return pressure
 }
 
+// Structure needed to sort valves with their distance.
+type ValveNr struct {
+	flowrate int
+	valvenr  Valvenr
+}
+
+type ValveNrs []ValveNr
+
+func (v ValveNrs) Len() int { return len(v) }
+
+func (v ValveNrs) Swap(i, j int) { v[i], v[j] = v[j], v[i] }
+
+func (v ValveNrs) Less(i, j int) bool { return v[j].flowrate < v[i].flowrate }
+
 func max_extra_pressure2(sol DuoSolution, rv ReducedVulcano) int {
-	// assume the minimum distance from walker in path[0] and walker in path[1]
-	mindist := make([]int, len(rv.valves))
-	pos0 := sol.path[0][len(sol.path[0])-1] &^ opened
-	for _, tun := range rv.valves[pos0].tunnel {
-		mindist[tun.valve] = tun.dist
-	}
-	mindist[pos0] = 0
-	pos1 := sol.path[1][len(sol.path[1])-1] &^ opened
-	for _, tun := range rv.valves[pos1].tunnel {
-		if tun.dist < mindist[tun.valve] {
-			mindist[tun.valve] = tun.dist
-		}
-	}
-	mindist[pos1] = 0
-	valvedists := make(ValveDists, 0, len(rv.valves))
+	// sort the valves that need to be opened based on valvenr
+	valvenrs := make(ValveNrs, 0, len(rv.valves))
 	for vnr, valve := range rv.valves {
 		if !sol.is_open[vnr] && valve.flowrate > 0 {
-			valvedists = append(valvedists, ValveDist{flowrate: valve.flowrate, dist: mindist[vnr]})
+			valvenrs = append(valvenrs, ValveNr{flowrate: valve.flowrate, valvenr: Valvenr(vnr)})
 		}
 	}
-	sort.Sort(valvedists)
+	sort.Sort(valvenrs)
 
 	pressure := 0
 	timeleft := make([]int, 2)
 	copy(timeleft, sol.timeleft[:])
-	for _, vd := range valvedists {
-		// take the one which has the most time
-		which := 0
-		maxtimeleft := timeleft[which]
-		if timeleft[1-which] > maxtimeleft {
-			which = 1 - which
-			maxtimeleft = timeleft[which]
+	var pos [2]Valvenr
+	pos[0] = sol.path[0][len(sol.path[0])-1] &^ opened
+	pos[1] = sol.path[1][len(sol.path[1])-1] &^ opened
+	for _, vnr := range valvenrs {
+		// take the one which is closest. Or rather, with the most time left when going to the valve
+		which := -1
+		maxtimeleft := -1
+		for try := 0; try <= 1; try++ {
+			var this_dist int
+			if pos[try] == vnr.valvenr {
+				this_dist = 0
+			} else {
+				for _, tun := range rv.valves[pos[try]].tunnel {
+					if tun.valve == vnr.valvenr {
+						this_dist = tun.dist
+						break
+					}
+				}
+			}
+			if timeleft[try]-this_dist > maxtimeleft {
+				maxtimeleft = timeleft[try] - this_dist
+				which = try
+			}
 		}
-		if maxtimeleft <= vd.dist {
-			// skip valves that are too far away
+		if which == -1 || maxtimeleft <= 0 {
+			// nothing found in range, just skip this valve
 			continue
 		}
 		timeleft[which]--
 		if timeleft[which] <= 0 {
-			return pressure
+			continue
 		}
-		pressure += vd.flowrate * (maxtimeleft - vd.dist)
+		pressure += vnr.flowrate * (maxtimeleft - 1)
 	}
 	return pressure
 }
