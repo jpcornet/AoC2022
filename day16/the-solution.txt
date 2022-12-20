@@ -1,0 +1,2 @@
+AA DD Open-DD CC BB Open-BB AA II JJ Open-JJ II AA DD EE FF GG HH Open-HH GG FF EE Open-EE DD CC Open-CC nothing
+      20 * 28   +   13 * 25    +     21 * 21         +            22 * 13    +     3 * 9    +    2 * 6
