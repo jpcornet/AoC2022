@@ -52,11 +52,10 @@ type Solution struct {
 }
 
 type DuoSolution struct {
-	pressure  int
-	timeleft1 int
-	timeleft2 int
-	path1     Path
-	path2     Path
+	pressure int
+	timeleft [2]int
+	path     [2]Path
+	is_open  []bool
 }
 
 func parse_input(filename string) Vulcano {
@@ -190,14 +189,51 @@ func max_extra_pressure(sol Solution, rv ReducedVulcano) int {
 	return pressure
 }
 
-// test if valve v has been opened in path p
-func is_opened(v Valvenr, p Path) bool {
-	for _, item := range p {
-		if item == v|opened {
-			return true
+func max_extra_pressure2(sol DuoSolution, rv ReducedVulcano) int {
+	// assume the minimum distance from walker in path[0] and walker in path[1]
+	mindist := make([]int, len(rv.valves))
+	pos0 := sol.path[0][len(sol.path[0])-1] &^ opened
+	for _, tun := range rv.valves[pos0].tunnel {
+		mindist[tun.valve] = tun.dist
+	}
+	mindist[pos0] = 0
+	pos1 := sol.path[1][len(sol.path[1])-1] &^ opened
+	for _, tun := range rv.valves[pos1].tunnel {
+		if tun.dist < mindist[tun.valve] {
+			mindist[tun.valve] = tun.dist
 		}
 	}
-	return false
+	mindist[pos1] = 0
+	valvedists := make(ValveDists, 0, len(rv.valves))
+	for vnr, valve := range rv.valves {
+		if !sol.is_open[vnr] && valve.flowrate > 0 {
+			valvedists = append(valvedists, ValveDist{flowrate: valve.flowrate, dist: mindist[vnr]})
+		}
+	}
+	sort.Sort(valvedists)
+
+	pressure := 0
+	timeleft := make([]int, 2)
+	copy(timeleft, sol.timeleft[:])
+	for _, vd := range valvedists {
+		// take the one which has the most time
+		which := 0
+		maxtimeleft := timeleft[which]
+		if timeleft[1-which] > maxtimeleft {
+			which = 1 - which
+			maxtimeleft = timeleft[which]
+		}
+		if maxtimeleft <= vd.dist {
+			// skip valves that are too far away
+			continue
+		}
+		timeleft[which]--
+		if timeleft[which] <= 0 {
+			return pressure
+		}
+		pressure += vd.flowrate * (maxtimeleft - vd.dist)
+	}
+	return pressure
 }
 
 func solution_str(rv ReducedVulcano, s Solution) string {
@@ -224,6 +260,34 @@ func solution_str(rv ReducedVulcano, s Solution) string {
 		s.pressure, s.timeleft, strings.Join(symbolicpath, " "))
 }
 
+func solution_str2(rv ReducedVulcano, s DuoSolution) string {
+	var symbolicpaths [2][]string
+	symbolicpaths[0] = make([]string, 0, len(s.path[0]))
+	symbolicpaths[1] = make([]string, 0, len(s.path[1]))
+	for which, subp := range s.path {
+		for i, p := range subp {
+			valvenr := p &^ opened
+			if p&opened == opened {
+				symbolicpaths[which] = append(symbolicpaths[which], fmt.Sprintf("Open-%s", rv.valves[valvenr].name))
+			} else {
+				if i > 0 {
+					for _, tun := range rv.valves[subp[i-1]&^opened].tunnel {
+						if tun.valve == p {
+							if tun.dist > 1 {
+								symbolicpaths[which] = append(symbolicpaths[which], fmt.Sprintf("(%d)", tun.dist-1))
+							}
+							break
+						}
+					}
+				}
+				symbolicpaths[which] = append(symbolicpaths[which], rv.valves[valvenr].name)
+			}
+		}
+	}
+	return fmt.Sprintf("pressure=%d, path1=[%s] path2=[%s] timeleft1=%d timeleft2=%d",
+		s.pressure, strings.Join(symbolicpaths[0], " "), strings.Join(symbolicpaths[1], " "), s.timeleft[0], s.timeleft[1])
+}
+
 func possible_next_steps(candidate Solution, rv ReducedVulcano, best *Solution) []Solution {
 	// if we cannot open more valves, this is a final solution
 	if candidate.timeleft <= 0 {
@@ -235,8 +299,7 @@ func possible_next_steps(candidate Solution, rv ReducedVulcano, best *Solution) 
 		// no point continuing with this solution
 		return nil
 	}
-	pos := candidate.path[len(candidate.path)-1]
-	pos = pos &^ opened
+	pos := candidate.path[len(candidate.path)-1] &^ opened
 	valve := rv.valves[pos]
 	new_solutions := make([]Solution, 0, 10)
 	// a solution is opening this valve. Except if the flowrate is zero
@@ -269,11 +332,67 @@ func possible_next_steps(candidate Solution, rv ReducedVulcano, best *Solution) 
 	return new_solutions
 }
 
-// find max flow using breadth-first parallel search
+func possible_next_steps2(candidate DuoSolution, rv ReducedVulcano, best *DuoSolution) []DuoSolution {
+	// take the one that has the most time left, and step that one
+	var which int
+	if candidate.timeleft[0] >= candidate.timeleft[1] {
+		which = 0
+	} else {
+		which = 1
+	}
+	if candidate.timeleft[which] <= 0 {
+		return nil
+	}
+	// calculate maximum pressure we could achieve by opening all remaining valves in order
+	max_possible := candidate.pressure + max_extra_pressure2(candidate, rv)
+	if max_possible < best.pressure {
+		// no point continuing with this solution
+		return nil
+	}
+	pos := candidate.path[which][len(candidate.path[which])-1] &^ opened
+	valve := rv.valves[pos]
+	new_solutions := make([]DuoSolution, 0, 10)
+	// XXX again, opening current valve is not implemented
+	if valve.flowrate > 0 && len(candidate.path[which]) == 1 {
+		panic("Also not implemented")
+	}
+	for _, tunnel := range valve.tunnel {
+		remote := tunnel.valve
+		// to prevent symmetric identical solutions, walker #1 is limited in the first steps by what walker #0 does
+		if which == 1 && len(candidate.path[1]) == 1 && remote < candidate.path[0][1]&^opened {
+			continue
+		}
+		if rv.valves[remote].flowrate > 0 && !candidate.is_open[remote] {
+			new_path := make(Path, len(candidate.path[which]), len(candidate.path[which])+2)
+			copy(new_path, candidate.path[which])
+			// go there and open it
+			new_path = append(new_path, remote)
+			new_path = append(new_path, remote|opened)
+			new_open := make([]bool, len(candidate.is_open))
+			copy(new_open, candidate.is_open)
+			new_open[remote] = true
+			rvalve := rv.valves[remote]
+			var timeleft [2]int
+			timeleft[which] = candidate.timeleft[which] - tunnel.dist - 1
+			timeleft[1-which] = candidate.timeleft[1-which]
+			var paths [2]Path
+			paths[which] = new_path
+			paths[1-which] = candidate.path[1-which]
+			new_solutions = append(new_solutions, DuoSolution{
+				pressure: candidate.pressure + rvalve.flowrate*timeleft[which],
+				timeleft: timeleft,
+				path:     paths,
+				is_open:  new_open,
+			})
+		}
+	}
+	return new_solutions
+}
+
+// find max flow using depth-first parallel search, expaning on the best path first
 func findmaxflow1(rv ReducedVulcano, start string, initial_timeleft int) (int, string) {
 	// collect all possible partial solutions here, sorted by pressure
 	partial_solutions := make([]Solution, 0, 20)
-	// calculate total flow of all closed valve
 	partial_solutions = append(partial_solutions, Solution{
 		pressure: 0,
 		timeleft: initial_timeleft,
@@ -310,6 +429,43 @@ func findmaxflow1(rv ReducedVulcano, start string, initial_timeleft int) (int, s
 	return best_solution.pressure, solution_str(rv, best_solution)
 }
 
+func findmaxflow2(rv ReducedVulcano, start string, initial_timeleft int) (int, string) {
+	// collect possible partial solutions, sorted by pressure
+	partial_solutions := make([]DuoSolution, 0, 20)
+	partial_solutions = append(partial_solutions, DuoSolution{
+		pressure: 0,
+		timeleft: [2]int{initial_timeleft, initial_timeleft},
+		path:     [2]Path{[]Valvenr{rv.valvenr[start]}, []Valvenr{rv.valvenr[start]}},
+		is_open:  make([]bool, len(rv.valves)),
+	})
+	// store the best solution here
+	best_solution := partial_solutions[0]
+	for len(partial_solutions) > 0 {
+		candidate := partial_solutions[len(partial_solutions)-1]
+		partial_solutions = partial_solutions[:len(partial_solutions)-1]
+		new_solutions := possible_next_steps2(candidate, rv, &best_solution)
+		// insert new solutions into partial solutions, in order
+		for _, news := range new_solutions {
+			newpos, _ := sort.Find(len(partial_solutions), func(i int) int {
+				if news.pressure < partial_solutions[i].pressure {
+					return -1
+				} else if news.pressure > partial_solutions[i].pressure {
+					return 1
+				} else {
+					return 0
+				}
+			})
+			partial_solutions = append(partial_solutions, DuoSolution{})
+			copy(partial_solutions[newpos+1:], partial_solutions[newpos:])
+			partial_solutions[newpos] = news
+		}
+		if len(partial_solutions) > 0 && partial_solutions[len(partial_solutions)-1].pressure > best_solution.pressure {
+			best_solution = partial_solutions[len(partial_solutions)-1]
+		}
+	}
+	return best_solution.pressure, solution_str2(rv, best_solution)
+}
+
 func main() {
 	if len(os.Args) != 2 {
 		panic("Provide input file")
@@ -324,4 +480,8 @@ func main() {
 	part1time := time.Now()
 	fmt.Printf("maxflow pressure=%d: %s\n", flow, solution)
 	fmt.Printf("part1 took: %s\n", part1time.Sub(parsetime))
+	flow2, solution2 := findmaxflow2(rvulcano, "AA", 26)
+	part2time := time.Now()
+	fmt.Printf("maxflow with elephant pressure=%d: %s\n", flow2, solution2)
+	fmt.Printf("part2 took: %s\n", part2time.Sub(part1time))
 }
