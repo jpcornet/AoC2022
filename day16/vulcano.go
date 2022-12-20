@@ -148,25 +148,44 @@ func reduce_vulcano(vl Vulcano, start string) ReducedVulcano {
 	return rv
 }
 
+// Structure needed to sort valves with their distance
+type ValveDist struct {
+	flowrate, dist int
+}
+
+type ValveDists []ValveDist
+
+func (v ValveDists) Len() int { return len(v) }
+
+func (v ValveDists) Swap(i, j int) { v[i], v[j] = v[j], v[i] }
+
+func (v ValveDists) Less(i, j int) bool { return v[j].flowrate < v[i].flowrate }
+
 func max_extra_pressure(sol Solution, rv ReducedVulcano) int {
-	pressures := make([]int, 0, len(rv.valves))
-	for nr, v := range rv.valves {
-		is_open := sol.is_open[nr]
-		if !is_open && v.flowrate > 0 {
-			pressures = append(pressures, v.flowrate)
+	valvedists := make(ValveDists, 0, len(rv.valves))
+	pos := sol.path[len(sol.path)-1] &^ opened
+	// we can assume current position has tunnels to all relevant valves
+	for _, tun := range rv.valves[pos].tunnel {
+		if !sol.is_open[tun.valve] && rv.valves[tun.valve].flowrate > 0 {
+			valvedists = append(valvedists, ValveDist{flowrate: rv.valves[tun.valve].flowrate, dist: tun.dist})
 		}
 	}
-	sort.Ints(pressures)
+	sort.Sort(valvedists)
+
 	pressure := 0
-	// assume the theoretical near-optimal that we are 1 step from the best valve, and that the next valve is only 1 step away
-	timeleft := sol.timeleft - 2
-	for i := len(pressures) - 1; i >= 0; i-- {
+	// assume the theoretical optimal that each path to the best valve is this projected distance
+	timeleft := sol.timeleft
+	for _, vd := range valvedists {
+		// it takes 1 minute to open a valve
+		if timeleft <= vd.dist {
+			// just skip this valve if it is too far away
+			continue
+		}
+		timeleft--
 		if timeleft <= 0 {
 			return pressure
 		}
-		pressure += pressures[i] * timeleft
-		// one step to reach the next valve, 1 step to open it
-		timeleft -= 2
+		pressure += vd.flowrate * (timeleft - vd.dist)
 	}
 	return pressure
 }
