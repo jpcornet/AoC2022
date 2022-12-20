@@ -165,8 +165,8 @@ func max_extra_pressure(sol Solution, rv ReducedVulcano) int {
 	}
 	sort.Ints(pressures)
 	pressure := 0
-	// assume the theoretical optimal that we are on the best valve, and that the next valve is only 1 step away
-	timeleft := sol.timeleft - 1
+	// assume the theoretical near-optimal that we are 1 step from the best valve, and that the next valve is only 1 step away
+	timeleft := sol.timeleft - 2
 	for i := len(pressures) - 1; i >= 0; i-- {
 		if timeleft <= 0 {
 			return pressure
