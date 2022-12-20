@@ -426,6 +426,7 @@ func findmaxflow1(rv ReducedVulcano, start string, initial_timeleft int) (int, s
 			best_solution = partial_solutions[len(partial_solutions)-1]
 		}
 	}
+	fmt.Printf("max solutions held: %d\n", cap(partial_solutions))
 	return best_solution.pressure, solution_str(rv, best_solution)
 }
 
@@ -463,6 +464,7 @@ func findmaxflow2(rv ReducedVulcano, start string, initial_timeleft int) (int, s
 			best_solution = partial_solutions[len(partial_solutions)-1]
 		}
 	}
+	fmt.Printf("max solutions held: %d\n", cap(partial_solutions))
 	return best_solution.pressure, solution_str2(rv, best_solution)
 }
 
