@@ -48,6 +48,7 @@ type Solution struct {
 	pressure int
 	timeleft int
 	path     Path
+	is_open  []bool
 }
 
 type DuoSolution struct {
@@ -92,14 +93,6 @@ func parse_input(filename string) Vulcano {
 	}
 }
 
-func copystrarray(in []string) []string {
-	result := make([]string, 0, len(in))
-	for _, s := range in {
-		result = append(result, strings.Clone(s))
-	}
-	return result
-}
-
 type TreeWalker struct {
 	pos  string
 	dist int
@@ -107,11 +100,12 @@ type TreeWalker struct {
 
 // map the tunnels in the original vulcano to the tunnels in the reduced vulcano.
 // valves that are not in the reduced vulcano do not appear, and are only represented in the distance between valves.
+// This actually maps distances to all other valves, independent of any intermediate valves
 func map_tunnels(name string, vl Vulcano, rv ReducedVulcano) []TunnelElem {
 	// walk the vulcano using simplified Dijkstra
 	var walkers []TreeWalker = []TreeWalker{{pos: name, dist: 0}}
 	seen := make(map[string]bool)
-	result := make([]TunnelElem, 0, len(vl.valves[name].tunnel))
+	result := make([]TunnelElem, 0, len(rv.valves))
 	for len(walkers) > 0 {
 		w := walkers[0]
 		walkers = walkers[1:]
@@ -127,10 +121,9 @@ func map_tunnels(name string, vl Vulcano, rv ReducedVulcano) []TunnelElem {
 			if in_reduced {
 				// it is in the reduced tunnel valve, we found the distance
 				result = append(result, TunnelElem{newdist, rvalvenr})
-			} else {
-				// not a target valve, keep walking
-				walkers = append(walkers, TreeWalker{pos: to, dist: newdist})
 			}
+			// keep walking
+			walkers = append(walkers, TreeWalker{pos: to, dist: newdist})
 		}
 	}
 	return result
@@ -147,6 +140,7 @@ func reduce_vulcano(vl Vulcano, start string) ReducedVulcano {
 			rv.valves = append(rv.valves, RValve{name: name, flowrate: v.flowrate})
 		}
 	}
+
 	// now map the tunnels between these valves
 	for vn, v := range rv.valves {
 		rv.valves[vn].tunnel = map_tunnels(v.name, vl, rv)
@@ -214,21 +208,17 @@ func solution_str(rv ReducedVulcano, s Solution) string {
 			symbolicpath = append(symbolicpath, rv.valves[valvenr].name)
 		}
 	}
-	return fmt.Sprintf("pressure=%d, timeleft=%d, path=[%s]", s.pressure, s.timeleft, strings.Join(symbolicpath, " "))
+	return fmt.Sprintf("pressure=%d, timeleft=%d, path=[%s]",
+		s.pressure, s.timeleft, strings.Join(symbolicpath, " "))
 }
 
 func possible_next_steps(candidate Solution, rv ReducedVulcano, best *Solution) []Solution {
-	// calculate max extra pressure
-	max_extra := max_extra_pressure(candidate, rv)
 	// if we cannot open more valves, this is a final solution
-	if max_extra == 0 {
-		if candidate.pressure > best.pressure {
-			*best = candidate
-		}
+	if candidate.timeleft <= 0 {
 		return nil
 	}
 	// calculate maximum pressure we could achieve by opening all remaining valves in order
-	max_possible := candidate.pressure + max_extra
+	max_possible := candidate.pressure + max_extra_pressure(candidate, rv)
 	if max_possible < best.pressure {
 		// no point continuing with this solution
 		return nil
@@ -237,40 +227,30 @@ func possible_next_steps(candidate Solution, rv ReducedVulcano, best *Solution) 
 	pos = pos &^ opened
 	valve := rv.valves[pos]
 	new_solutions := make([]Solution, 0, 10)
-	// a solution is opening this valve. Except if the flowrate is zero or we already opened it
-	if valve.flowrate > 0 && !is_opened(pos, candidate.path) {
-		new_path := make(Path, len(candidate.path), len(candidate.path)+1)
-		copy(new_path, candidate.path)
-		new_path = append(new_path, pos|opened)
-		new_solutions = append(new_solutions, Solution{
-			pressure: candidate.pressure + valve.flowrate*(candidate.timeleft-1),
-			timeleft: candidate.timeleft - 1,
-			path:     new_path,
-		})
+	// a solution is opening this valve. Except if the flowrate is zero
+	if valve.flowrate > 0 && len(candidate.path) == 1 {
+		panic("Cannot handle starting at a non-zero valve")
+		// This is simply not implemented
 	}
 	// try all tunnels from this position
 	for _, tunnel := range valve.tunnel {
 		remote := tunnel.valve
-		// there is no point going to this valve if we've already been here without opening another one
-		beenthere := false
-		for i := len(candidate.path) - 1; i >= 0; i-- {
-			if candidate.path[i]&^opened == remote {
-				beenthere = true
-				break
-			}
-			if candidate.path[i]&opened == opened {
-				// this valve was opened, so we're not interested in previous valves
-				break
-			}
-		}
-		if !beenthere {
-			new_path := make(Path, len(candidate.path), len(candidate.path)+1)
+		// no point going there unless we need to open this
+		if rv.valves[remote].flowrate > 0 && !candidate.is_open[remote] {
+			new_path := make(Path, len(candidate.path), len(candidate.path)+2)
 			copy(new_path, candidate.path)
+			// go there and open it
 			new_path = append(new_path, remote)
+			new_path = append(new_path, remote|opened)
+			new_open := make([]bool, len(candidate.is_open))
+			copy(new_open, candidate.is_open)
+			new_open[remote] = true
+			rvalve := rv.valves[remote]
 			new_solutions = append(new_solutions, Solution{
-				pressure: candidate.pressure,
-				timeleft: candidate.timeleft - tunnel.dist,
+				pressure: candidate.pressure + rvalve.flowrate*(candidate.timeleft-tunnel.dist-1),
+				timeleft: candidate.timeleft - tunnel.dist - 1,
 				path:     new_path,
+				is_open:  new_open,
 			})
 		}
 	}
@@ -281,13 +261,16 @@ func possible_next_steps(candidate Solution, rv ReducedVulcano, best *Solution) 
 func findmaxflow1(rv ReducedVulcano, start string, initial_timeleft int) (int, string) {
 	// collect all possible partial solutions here, sorted by pressure
 	partial_solutions := make([]Solution, 0, 20)
+	// calculate total flow of all closed valve
 	partial_solutions = append(partial_solutions, Solution{
 		pressure: 0,
 		timeleft: initial_timeleft,
 		path:     []Valvenr{rv.valvenr[start]},
+		is_open:  make([]bool, len(rv.valves)),
 	})
 	// whenever we have a better solution, store it in best_solution
 	best_solution := partial_solutions[0]
+	fmt.Printf("Starting with solution: %s\n", solution_str(rv, best_solution))
 	for len(partial_solutions) > 0 {
 		candidate := partial_solutions[len(partial_solutions)-1]
 		partial_solutions = partial_solutions[:len(partial_solutions)-1]
