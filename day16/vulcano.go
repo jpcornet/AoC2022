@@ -105,10 +105,10 @@ func map_tunnels(name string, vl Vulcano, rv ReducedVulcano) []TunnelElem {
 	var walkers []TreeWalker = []TreeWalker{{pos: name, dist: 0}}
 	seen := make(map[string]bool)
 	result := make([]TunnelElem, 0, len(rv.valves))
+	seen[name] = true
 	for len(walkers) > 0 {
 		w := walkers[0]
 		walkers = walkers[1:]
-		seen[w.pos] = true
 		newdist := w.dist + 1
 		for _, to := range vl.valves[w.pos].tunnel {
 			_, beenthere := seen[to]
@@ -116,6 +116,7 @@ func map_tunnels(name string, vl Vulcano, rv ReducedVulcano) []TunnelElem {
 				// we've already been here, skip
 				continue
 			}
+			seen[to] = true
 			rvalvenr, in_reduced := rv.valvenr[to]
 			if in_reduced {
 				// it is in the reduced tunnel valve, we found the distance
