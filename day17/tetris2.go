@@ -13,9 +13,8 @@ type Line uint8
 const width = 7
 
 type Stack struct {
-	offset            int
-	lines             []Line
-	topleft, topright int
+	offset int
+	lines  []Line
 }
 
 type Rock struct {
@@ -81,7 +80,7 @@ func has_overlap(rock Rock, x, y int) bool {
 
 // adds rock to the stack. Returns true if the stack has just been pruned.
 func add_rock_to_stack(rock Rock, x, y int) bool {
-	hbar := Line(1)<<width - 1
+	hbar := Line((1 << width) - 1)
 	barfound := -1
 	for ry, l := range rock.lines {
 		for y+ry >= len(stack.lines)+stack.offset {
@@ -93,9 +92,21 @@ func add_rock_to_stack(rock Rock, x, y int) bool {
 		}
 	}
 	if barfound != -1 {
+		fmt.Printf("Found hbar at %d, pruning stack\n", barfound)
 		stack.lines = stack.lines[barfound:]
 		stack.offset += barfound
 		return true
+	} else {
+		// find two adjacent lines that together form an hbar. Which is also impenetrable for any rock with size > 1
+		for dy := len(stack.lines) - 2; dy >= y-stack.offset; dy-- {
+			if (stack.lines[dy] | stack.lines[dy+1]) == hbar {
+				fmt.Printf("Found pseudo-hbar at %d, pruning stack\n", dy)
+				stack.lines = stack.lines[dy:]
+				stack.offset += dy
+				show_stack()
+				return true
+			}
+		}
 	}
 	return false
 }
@@ -119,9 +130,9 @@ func drop_one_rock() bool {
 }
 
 func show_stack() {
-	if len(stack.lines) > 1000 {
-		stack.offset = len(stack.lines) - 1000
-		stack.lines = stack.lines[len(stack.lines)-1000:]
+	if len(stack.lines) > 10000 {
+		stack.offset += len(stack.lines) - 10000
+		stack.lines = stack.lines[len(stack.lines)-10000:]
 	}
 	for y := len(stack.lines) - 1; y >= 0; y-- {
 		strline := ""
@@ -144,6 +155,19 @@ func show_stack() {
 	fmt.Printf("Stack size: %d\n", len(stack.lines)+stack.offset)
 }
 
+const snaplen = 10
+
+type GamePos struct {
+	rocknr, streamnr int
+	stacksnap        [snaplen]Line
+}
+
+type GameProgress struct {
+	num_rocks, stack_size int
+}
+
+type MemRepeat map[GamePos]GameProgress
+
 func main() {
 	if len(os.Args) != 2 {
 		panic("Provide input file")
@@ -157,10 +181,38 @@ func main() {
 	setup_field()
 	loadtime := time.Now()
 	fmt.Printf("Loading took: %s\n", loadtime.Sub(starttime))
-	for n := 0; n < 100_000; n++ {
+	target_rocks := 1_000_000_000_000
+	total_rocks := 0
+	game_repeat := make(MemRepeat)
+	for total_rocks < target_rocks {
+		total_rocks++
 		if drop_one_rock() {
-			fmt.Printf("rocknr=%d, streamnr=%d\n", rocknr, streamnr)
-			show_stack()
+			// the rock we just dropped pruned the stack.
+			// try to see if we can find a repeat. Only if the stacksize fits in the GamePos struct
+			fmt.Printf("Stack pruned, size=%d\n", len(stack.lines))
+			if len(stack.lines) <= snaplen {
+				this_pos := GamePos{
+					rocknr:   rocknr,
+					streamnr: streamnr,
+				}
+				copy(this_pos.stacksnap[:], stack.lines)
+				progress, found := game_repeat[this_pos]
+				if found {
+					delta_rocks := total_rocks - progress.num_rocks
+					delta_stack := len(stack.lines) + stack.offset - progress.stack_size
+					fmt.Printf("Found a repeat! At rocknr=%d streamnr=%d, delta rocks=%d, delta stack=%d\n", rocknr, streamnr, delta_rocks, delta_stack)
+					show_stack()
+					repeats := (target_rocks - total_rocks) / delta_rocks
+					total_rocks += repeats * delta_rocks
+					stack.offset += repeats * delta_stack
+				} else {
+					game_repeat[this_pos] = GameProgress{
+						num_rocks:  total_rocks,
+						stack_size: len(stack.lines) + stack.offset,
+					}
+					fmt.Printf("Storing game position %v = %v\n", this_pos, game_repeat[this_pos])
+				}
+			}
 		}
 	}
 	part1time := time.Now()
