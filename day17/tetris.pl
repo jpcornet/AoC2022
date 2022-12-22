@@ -105,4 +105,5 @@ sub drop_one_rock {
 for ( 1..2022 ) {
     drop_one_rock();
 }
+show_stack();
 print "Height of tower: ", scalar @stack, "\n";
