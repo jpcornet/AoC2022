@@ -92,7 +92,6 @@ func add_rock_to_stack(rock Rock, x, y int) bool {
 		}
 	}
 	if barfound != -1 {
-		fmt.Printf("Found hbar at %d, pruning stack\n", barfound)
 		stack.lines = stack.lines[barfound:]
 		stack.offset += barfound
 		return true
@@ -100,7 +99,6 @@ func add_rock_to_stack(rock Rock, x, y int) bool {
 		// find two adjacent lines that together form an hbar. Which is also impenetrable for any rock with size > 1
 		for dy := len(stack.lines) - 2; dy >= y-stack.offset; dy-- {
 			if (stack.lines[dy] | stack.lines[dy+1]) == hbar {
-				fmt.Printf("Found pseudo-hbar at %d, pruning stack\n", dy)
 				stack.lines = stack.lines[dy:]
 				stack.offset += dy
 				show_stack()
@@ -131,6 +129,7 @@ func drop_one_rock() bool {
 
 func show_stack() {
 	if len(stack.lines) > 10000 {
+		fmt.Printf("Before showing stack, pruning to 10000. Real length was: %d\n", len(stack.lines))
 		stack.offset += len(stack.lines) - 10000
 		stack.lines = stack.lines[len(stack.lines)-10000:]
 	}
@@ -189,7 +188,6 @@ func main() {
 		if drop_one_rock() {
 			// the rock we just dropped pruned the stack.
 			// try to see if we can find a repeat. Only if the stacksize fits in the GamePos struct
-			fmt.Printf("Stack pruned, size=%d\n", len(stack.lines))
 			if len(stack.lines) <= snaplen {
 				this_pos := GamePos{
 					rocknr:   rocknr,
@@ -200,8 +198,6 @@ func main() {
 				if found {
 					delta_rocks := total_rocks - progress.num_rocks
 					delta_stack := len(stack.lines) + stack.offset - progress.stack_size
-					fmt.Printf("Found a repeat! At rocknr=%d streamnr=%d, delta rocks=%d, delta stack=%d\n", rocknr, streamnr, delta_rocks, delta_stack)
-					show_stack()
 					repeats := (target_rocks - total_rocks) / delta_rocks
 					total_rocks += repeats * delta_rocks
 					stack.offset += repeats * delta_stack
@@ -210,7 +206,6 @@ func main() {
 						num_rocks:  total_rocks,
 						stack_size: len(stack.lines) + stack.offset,
 					}
-					fmt.Printf("Storing game position %v = %v\n", this_pos, game_repeat[this_pos])
 				}
 			}
 		}
