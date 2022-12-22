@@ -12,6 +12,9 @@ type Line uint8
 
 const width = 7
 
+// if the stack gets this big, there is something wrong with the pruning
+const max_stack = 1_000_000
+
 type Stack struct {
 	offset int
 	lines  []Line
@@ -101,10 +104,12 @@ func add_rock_to_stack(rock Rock, x, y int) bool {
 			if (stack.lines[dy] | stack.lines[dy+1]) == hbar {
 				stack.lines = stack.lines[dy:]
 				stack.offset += dy
-				show_stack()
 				return true
 			}
 		}
+	}
+	if len(stack.lines) > max_stack {
+		panic("Stack grew too big, something wrong with pruning")
 	}
 	return false
 }
