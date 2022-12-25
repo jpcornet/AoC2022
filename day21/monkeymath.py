@@ -70,13 +70,13 @@ class MonkeySheet:
             exit(-1)
 
     def solve(self, name):
-        print(f"In solve({name})")
+        #print(f"In solve({name})")
         if name in self.busy:
-            print(f"Already trying to solve {name}, giving up")
+            #print(f"Already trying to solve {name}, giving up")
             return None
         self.busy[name] = True
         if name in self.value:
-            print(f"Value for {name} already known: {self.value[name]}")
+            #print(f"Value for {name} already known: {self.value[name]}")
             del self.busy[name]
             return self.value[name]
         direct_solve = True
@@ -89,7 +89,7 @@ class MonkeySheet:
                         break
             if direct_solve:
                 self.value[name] = self.eq[name]()
-                print(f"Solved {name} = {self.value[name]}")
+                #print(f"Solved {name} = {self.value[name]}")
                 del self.busy[name]
                 return self.value[name]
 
@@ -99,7 +99,7 @@ class MonkeySheet:
                 del self.busy[name]
                 return ans
         else:
-            print(f"Cannot solve {name}")
+            #print(f"Cannot solve {name}")
             del self.busy[name]
             return None
 
@@ -113,18 +113,18 @@ class MonkeySheet:
         return None
 
     def try_reverse(self, name):
-        print(f"Trying reverse lookup for {name}, {len(self.reverse[name])} available")
+        #print(f"Trying reverse lookup for {name}, {len(self.reverse[name])} available")
         for dep1, dep2, ev in self.reverse[name]:
             v1 = self.solve(dep1)
             if v1 == None:
-                print(f"This reverse depending on {dep1} gives no answer")
+                #print(f"This reverse depending on {dep1} gives no answer")
                 continue
             v2 = self.solve(dep2)
             if v2 == None:
-                print(f"This reverse depending on {dep2} gives no answer")
+                #print(f"This reverse depending on {dep2} gives no answer")
                 continue
             self.value[name] = ev()
-            print(f"Solved {name} via reverse on {dep1} and {dep2} = {self.value[name]}")
+            #print(f"Solved {name} via reverse on {dep1} and {dep2} = {self.value[name]}")
             return self.value[name]
         print(f"None of the reverses for {name} worked out")
         return None
@@ -133,7 +133,6 @@ class MonkeySheet:
         test_these = [ x for x in self.value ]
         for n in test_these:
             if n not in self.orig:
-                print(f"Deleted value for {n}, not original in spec")
                 del self.value[n]
 
     def delete_eq(self, name):
