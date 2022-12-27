@@ -96,10 +96,10 @@ func walk_path(field Field, path Path, posd PosDir, wrapper WrapFunc) PosDir {
 			newpos := Pos{posd.pos[0] + directions[posd.dir][0], posd.pos[1] + directions[posd.dir][1]}
 			newposdir := PosDir{pos: newpos, dir: posd.dir}
 			if newpos[0] < 0 || newpos[1] < 0 || newpos[1] >= len(field) || newpos[0] >= len(field[newpos[1]]) || field[newpos[1]][newpos[0]] == ' ' {
-				fmt.Printf("At %d,%d direction %c, wrapping\n", posd.pos[0], posd.pos[1], dirtochar(posd.dir))
+				//fmt.Printf("At %d,%d direction %c, wrapping\n", posd.pos[0], posd.pos[1], dirtochar(posd.dir))
 				newposdir = wrapper(posd)
 				newpos = newposdir.pos
-				fmt.Printf("... wrapped to %d,%d direction %c\n", newpos[0], newpos[1], dirtochar(newposdir.dir))
+				//fmt.Printf("... wrapped to %d,%d direction %c\n", newpos[0], newpos[1], dirtochar(newposdir.dir))
 			}
 			chr := field[newpos[1]][newpos[0]]
 			if chr == '.' {
@@ -111,7 +111,7 @@ func walk_path(field Field, path Path, posd PosDir, wrapper WrapFunc) PosDir {
 			}
 		}
 		posd.dir = (posd.dir + p.rotate + 4) % 4
-		fmt.Printf("At %d,%d rotated to %c\n", posd.pos[0], posd.pos[1], dirtochar(posd.dir))
+		//fmt.Printf("At %d,%d rotated to %c\n", posd.pos[0], posd.pos[1], dirtochar(posd.dir))
 	}
 	return posd
 }
@@ -316,8 +316,8 @@ func make_cube_wrapper(layout CubeLayout) WrapFunc {
 		oy -= (layout.dim - 1) * directions[other.dir][1]
 		newfacepos := layout.face[other.facenr].pos
 		mapped := PosDir{pos: Pos{newfacepos[0] + ox, newfacepos[1] + oy}, dir: other.dir}
-		fmt.Printf("Cubewrap from %d,%d facing %c on face#%d (relative pos %d,%d) to %d,%d facing %c on face#%d (relative pos %d,%d)\n",
-			pd.pos[0], pd.pos[1], dirtochar(pd.dir), facenr, x, y, mapped.pos[0], mapped.pos[1], dirtochar(other.dir), other.facenr, ox, oy)
+		//fmt.Printf("Cubewrap from %d,%d facing %c on face#%d (relative pos %d,%d) to %d,%d facing %c on face#%d (relative pos %d,%d)\n",
+		//	pd.pos[0], pd.pos[1], dirtochar(pd.dir), facenr, x, y, mapped.pos[0], mapped.pos[1], dirtochar(other.dir), other.facenr, ox, oy)
 		return mapped
 	}
 }
@@ -337,10 +337,12 @@ func main() {
 	startpos := get_startpos(field)
 	endpos := walk_path(field, path, startpos, make_basic_wrapper(field))
 	walktime := time.Now()
-	fmt.Printf("endpos: %v. Password: %d\n", endpos, to_pass(endpos))
+	fmt.Printf("endpos part 1: %v. Password: %d\n", endpos, to_pass(endpos))
 	cube_layout := analyze_cube(field)
 	endpos2 := walk_path(field, path, startpos, make_cube_wrapper(cube_layout))
+	walk2time := time.Now()
 	fmt.Printf("endpos part 2: %v, Password: %d\n", endpos, to_pass(endpos2))
 	fmt.Printf("Parse took: %s\n", parsetime.Sub(starttime))
 	fmt.Printf("part 1 took: %s\n", walktime.Sub(parsetime))
+	fmt.Printf("part 2 took: %s\n", walk2time.Sub(walktime))
 }
