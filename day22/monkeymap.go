@@ -341,7 +341,7 @@ func main() {
 	cube_layout := analyze_cube(field)
 	endpos2 := walk_path(field, path, startpos, make_cube_wrapper(cube_layout))
 	walk2time := time.Now()
-	fmt.Printf("endpos part 2: %v, Password: %d\n", endpos, to_pass(endpos2))
+	fmt.Printf("endpos part 2: %v, Password: %d\n", endpos2, to_pass(endpos2))
 	fmt.Printf("Parse took: %s\n", parsetime.Sub(starttime))
 	fmt.Printf("part 1 took: %s\n", walktime.Sub(parsetime))
 	fmt.Printf("part 2 took: %s\n", walk2time.Sub(walktime))
