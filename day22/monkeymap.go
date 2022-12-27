@@ -139,8 +139,9 @@ type FaceInfo struct {
 }
 
 type CubeLayout struct {
-	dim  int
-	face [6]FaceInfo
+	dim     int
+	face    [6]FaceInfo
+	facepos map[Pos]int
 }
 
 type FoldConnect struct {
@@ -194,7 +195,7 @@ func analyze_cube(field Field) CubeLayout {
 	}
 	// now get the positions of all the cube faces
 	facenr := 0
-	facepos := make(map[Pos]int, 6)
+	layout.facepos = make(map[Pos]int, 6)
 	for y := 0; y < len(field); y += layout.dim {
 		left := strings.IndexAny(field[y], ".#")
 		right := strings.LastIndexAny(field[y], ".#")
@@ -204,8 +205,8 @@ func analyze_cube(field Field) CubeLayout {
 				panic("Logic error, too many cube faces")
 			}
 			layout.face[facenr].pos = Pos{x, y}
-			facepos[Pos{x, y}] = facenr
-			fmt.Printf("Found face#%d at %d,%d\n", facenr, x, y)
+			layout.facepos[Pos{x, y}] = facenr
+			//fmt.Printf("Found face#%d at %d,%d\n", facenr, x, y)
 			facenr++
 		}
 	}
@@ -227,6 +228,10 @@ func analyze_cube(field Field) CubeLayout {
 		{normal: -3, perp: -1, rotate: -3, free: []Pos{{-1, -1}}}, // 3 backwards and to the left
 		{normal: -1, perp: 4, rotate: 0},                          // 4 over, no rotation
 		{normal: -1, perp: -4, rotate: 0},
+		{normal: -2, perp: 2, rotate: -1, free: []Pos{{0, 1}, {-1, 2}}},
+		{normal: -2, perp: -2, rotate: 1, free: []Pos{{0, -1}, {-1, -2}}},
+		{normal: -2, perp: 3, rotate: 0},
+		{normal: -2, perp: -3, rotate: 0},
 		{normal: -3, perp: 2, rotate: 0},
 		{normal: -3, perp: -2, rotate: 0},
 	}
@@ -237,13 +242,13 @@ func analyze_cube(field Field) CubeLayout {
 			for _, fold := range foldconnects {
 				// note: to get consistent turn directions, we calculate the perpendicular movement als x += -dy, y += dx. Or multiply movement by matrix (0 -1) // (1 0)
 				dpos := Pos{f.pos[0] + layout.dim*d[0]*fold.normal - layout.dim*d[1]*fold.perp, f.pos[1] + layout.dim*d[1]*fold.normal + layout.dim*d[0]*fold.perp}
-				if otherfi, ok := facepos[dpos]; ok {
+				if otherfi, ok := layout.facepos[dpos]; ok {
 					// there is a face where we expected it
 					found = true
 					// make sure every block in "absent" is actually absent, or we didn't really find it
 					for _, absent := range fold.free {
 						apos := Pos{f.pos[0] + layout.dim*d[0]*absent[0] - layout.dim*d[1]*absent[1], f.pos[1] + layout.dim*d[1]*absent[0] + layout.dim*d[0]*absent[1]}
-						if _, notok := facepos[apos]; notok {
+						if _, notok := layout.facepos[apos]; notok {
 							//fmt.Printf("Would go from face#%d at %d,%d going %c to face #%d, but there is face#%d at %d,%d that blocks it\n", fi, f.pos[0], f.pos[1], dirtochar(di), otherfi, blk, apos[0], apos[1])
 							found = false
 							break
@@ -252,7 +257,7 @@ func analyze_cube(field Field) CubeLayout {
 					if found {
 						layout.face[fi].adjacent[di].facenr = otherfi
 						layout.face[fi].adjacent[di].dir = (di + fold.rotate + 4) % 4
-						fmt.Printf("From face#%d at %d,%d going %c we find face#%d at %d,%d going %c\n", fi, f.pos[0], f.pos[1], dirtochar(di), otherfi, layout.face[otherfi].pos[0], layout.face[otherfi].pos[1], dirtochar(layout.face[fi].adjacent[di].dir))
+						//fmt.Printf("From face#%d at %d,%d going %c we find face#%d at %d,%d going %c\n", fi, f.pos[0], f.pos[1], dirtochar(di), otherfi, layout.face[otherfi].pos[0], layout.face[otherfi].pos[1], dirtochar(layout.face[fi].adjacent[di].dir))
 						break
 					}
 				}
@@ -280,6 +285,47 @@ func verify_layout(l CubeLayout) CubeLayout {
 	return l
 }
 
+func make_cube_wrapper(layout CubeLayout) WrapFunc {
+	return func(pd PosDir) PosDir {
+		// determine offset within the cube face that we're in
+		x := pd.pos[0] % layout.dim
+		y := pd.pos[1] % layout.dim
+		// determine the cube face we're in, based on the top left corner
+		facepos := Pos{pd.pos[0] - x, pd.pos[1] - y}
+		facenr := layout.facepos[facepos]
+		// determine the cube face that we're going to
+		other := layout.face[facenr].adjacent[pd.dir]
+		// we go from direction pd.dir to other.dir. Rotate x and y accordingly.
+		var ox, oy int
+		switch (other.dir - pd.dir + 4) % 4 {
+		case 0:
+			// no need to rotate
+			ox, oy = x, y
+		case 1:
+			// rotate clockwise 90
+			ox, oy = layout.dim-1-y, x
+		case 2:
+			// rotate 180
+			ox, oy = layout.dim-1-x, layout.dim-1-y
+		case 3:
+			// rotate counterclockwise 90
+			ox, oy = y, layout.dim-1-x
+		}
+		// ox, oy is now the corresponding point where we left off. Map this to the other side
+		ox -= (layout.dim - 1) * directions[other.dir][0]
+		oy -= (layout.dim - 1) * directions[other.dir][1]
+		newfacepos := layout.face[other.facenr].pos
+		mapped := PosDir{pos: Pos{newfacepos[0] + ox, newfacepos[1] + oy}, dir: other.dir}
+		fmt.Printf("Cubewrap from %d,%d facing %c on face#%d (relative pos %d,%d) to %d,%d facing %c on face#%d (relative pos %d,%d)\n",
+			pd.pos[0], pd.pos[1], dirtochar(pd.dir), facenr, x, y, mapped.pos[0], mapped.pos[1], dirtochar(other.dir), other.facenr, ox, oy)
+		return mapped
+	}
+}
+
+func to_pass(posd PosDir) int {
+	return 1000*(posd.pos[1]+1) + 4*(posd.pos[0]+1) + posd.dir
+}
+
 func main() {
 	if len(os.Args) != 2 {
 		panic("Provide input file")
@@ -291,9 +337,10 @@ func main() {
 	startpos := get_startpos(field)
 	endpos := walk_path(field, path, startpos, make_basic_wrapper(field))
 	walktime := time.Now()
-	fmt.Printf("endpos: %v. Password: %d\n", endpos, 1000*(endpos.pos[1]+1)+4*(endpos.pos[0]+1)+endpos.dir)
+	fmt.Printf("endpos: %v. Password: %d\n", endpos, to_pass(endpos))
 	cube_layout := analyze_cube(field)
+	endpos2 := walk_path(field, path, startpos, make_cube_wrapper(cube_layout))
+	fmt.Printf("endpos part 2: %v, Password: %d\n", endpos, to_pass(endpos2))
 	fmt.Printf("Parse took: %s\n", parsetime.Sub(starttime))
 	fmt.Printf("part 1 took: %s\n", walktime.Sub(parsetime))
-	fmt.Printf("Cube layout=%v\n", cube_layout)
 }
