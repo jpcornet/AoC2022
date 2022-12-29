@@ -150,6 +150,49 @@ func (field Field) Evolve(firstdir int) {
 	}
 }
 
+func (f Field) EmptyGround() int {
+	minx := len(f[0])
+	maxx := 0
+	var miny int
+	emptylines := 0
+	emptyground := 0
+	startcounting := false
+	for y, line := range f {
+		line_is_empty := true
+		for x, item := range line {
+			if item == '#' {
+				line_is_empty = false
+				emptylines = 0
+				if !startcounting {
+					startcounting = true
+					// everything up to this one is empty. Since x is 0 based, number of empty tiles before this is x
+					emptyground = x
+					miny = y
+				}
+				if x < minx {
+					minx = x
+				}
+				if x > maxx {
+					maxx = x
+				}
+			} else if startcounting {
+				emptyground++
+			}
+		}
+		if line_is_empty {
+			emptylines++
+		}
+	}
+	// we should not have counted all the trailing empty lines
+	fmt.Printf("minx=%d, maxx=%d, miny=%d, emptylines=%d, emptyground raw=%d\n", minx, maxx, miny, emptylines, emptyground)
+	emptyground -= emptylines * len(f[0])
+	// calculate number of lines with elves:
+	rectangle_height := len(f) - miny - emptylines
+	// remove the left and right edges
+	emptyground -= (minx + len(f[0]) - 1 - maxx) * rectangle_height
+	return emptyground
+}
+
 func (f Field) String() string {
 	ret := ""
 	for _, s := range f {
@@ -167,11 +210,12 @@ func main() {
 	parsetime := time.Now()
 	for round := 1; round <= 10; round++ {
 		field.Expand()
-		fmt.Printf("\nStarting round %d:\n%s", round, field)
+		//fmt.Printf("\nStarting round %d:\n%s", round, field)
 		field.Evolve(round - 1)
 	}
+	part1 := field.EmptyGround()
 	part1time := time.Now()
-	fmt.Printf("\nEnd result:\n%s", field)
+	fmt.Printf("\nempty ground part 1=%d\nEnd result:\n%s", part1, field)
 	fmt.Printf("Parse took: %s\n", parsetime.Sub(starttime))
 	fmt.Printf("part 1 took: %s\n", part1time.Sub(parsetime))
 }
