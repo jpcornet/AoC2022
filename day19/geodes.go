@@ -20,6 +20,7 @@ type Blueprint struct {
 	max_ore_robot  int
 }
 
+// XXX recode... state should only be amount of material at start of minute.
 type State struct {
 	timeleft    int
 	ore         int
@@ -276,9 +277,10 @@ func get_max_geodes(bp Blueprint, state State) Path {
 		possible = append(possible, fill_solution(bp, state))
 		seen := make(map[State]bool)
 		showtime := time.Now()
+		considered := 0
 		for len(possible) > 0 {
 			if time.Since(showtime).Seconds() > 1.0 {
-				fmt.Printf("Considering %d possible solutions\n", len(possible))
+				fmt.Printf("Considered %d solutions, %d possible solutions in pipeline\n", considered, len(possible))
 				showtime = time.Now()
 			}
 			// take first solution from the list
@@ -290,6 +292,7 @@ func get_max_geodes(bp Blueprint, state State) Path {
 					continue
 				} else {
 					seen[s.states[len(s.states)-1]] = true
+					considered++
 				}
 				if s.Score() > best.Score() {
 					fmt.Printf("New best solution, score=%d: %v\n", s.Score(), s)
