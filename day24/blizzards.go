@@ -104,14 +104,14 @@ func (f Field) MoveBlizzards() {
 // Path is a collection of posistions. Current position is the tail
 type Path []Pos
 
-func walk_path(f Field, p Pos) (int, Path) {
+func walk_path(f Field, start, finish Pos) (int, Path) {
 	current_pos := make([]Path, 1)
-	current_pos[0] = []Pos{p}
+	current_pos[0] = []Pos{start}
 	// possible directions we can walk. Standing still is also an option.
 	directions := []Dir{{0, 0}, {1, 0}, {0, 1}, {-1, 0}, {0, -1}}
 	step := 1
 	for {
-		fmt.Printf("Start step %d, positions to consider: %d\n", step, len(current_pos))
+		//fmt.Printf("Start step %d, positions to consider: %d\n", step, len(current_pos))
 		// start by moving the blizzards to the next position. From there we can figure out where we can go.
 		f.MoveBlizzards()
 		// determine where the blizzards are, in a map
@@ -127,11 +127,11 @@ func walk_path(f Field, p Pos) (int, Path) {
 			at := cur[len(cur)-1]
 			for _, d := range directions {
 				newpos := Pos{at.x + d.dx, at.y + d.dy}
-				if newpos == f.out {
+				if newpos == finish {
 					// found the exit!
 					return step, cur
 				}
-				if newpos.x <= 0 || newpos.x >= f.width-1 || newpos.y <= 0 || newpos.y >= f.height-1 {
+				if newpos != start && (newpos.x <= 0 || newpos.x >= f.width-1 || newpos.y <= 0 || newpos.y >= f.height-1) {
 					// we cannot walk into the wall or off the field
 					continue
 				}
@@ -152,8 +152,7 @@ func walk_path(f Field, p Pos) (int, Path) {
 			}
 		}
 		if len(next_pos) == 0 {
-			fmt.Println("No solution possible")
-			return -1, nil
+			panic("No solution possible")
 		}
 		// prepare for the next step
 		step++
@@ -168,9 +167,16 @@ func main() {
 	starttime := time.Now()
 	field := parse_input(os.Args[1])
 	parsetime := time.Now()
-	steps, path := walk_path(field, field.in)
+	steps, path := walk_path(field, field.in, field.out)
 	part1time := time.Now()
-	fmt.Printf("Steps: %d , Path taken: %v\n", steps, path)
+	fmt.Printf("part 1 Steps: %d , Path taken: %v\n", steps, path)
+	steps2, path2 := walk_path(field, field.out, field.in)
+	fmt.Printf("part 2 going back, steps: %d, path taken: %v\n", steps2, path2)
+	steps3, path3 := walk_path(field, field.in, field.out)
+	part2time := time.Now()
+	fmt.Printf("part 2 return, steps: %d, path taken: %v\n", steps3, path3)
+	fmt.Printf("part 2 total time: %d\n", steps+steps2+steps3)
 	fmt.Printf("Parse took: %s\n", parsetime.Sub(starttime))
 	fmt.Printf("part 1 took: %s\n", part1time.Sub(parsetime))
+	fmt.Printf("part 2 took: %s\n", part2time.Sub(part1time))
 }
