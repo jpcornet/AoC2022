@@ -109,7 +109,7 @@ LookAround:
 	return p
 }
 
-func (field Field) Evolve(firstdir int) {
+func (field Field) Evolve(firstdir int) bool {
 	// "proposed" contains the proposed moves.
 	// if true, move is possible, if false, more than 1 elf proposed to move there
 	proposed := make(map[Pos]bool)
@@ -136,6 +136,7 @@ func (field Field) Evolve(firstdir int) {
 		}
 	}
 	// part 2, actually move the elves, if they are the only one that proposed this move
+	has_moved := false
 	for elf, moveto := range elves {
 		if proposed[moveto] {
 			if field[elf.y][elf.x] != '#' {
@@ -144,10 +145,12 @@ func (field Field) Evolve(firstdir int) {
 			if field[moveto.y][moveto.x] != '.' {
 				panic(fmt.Sprintf("Moving elf from %v to %v, but that is not free, got: [%c]", elf, moveto, field[moveto.y][moveto.x]))
 			}
+			has_moved = true
 			field[elf.y][elf.x] = '.'
 			field[moveto.y][moveto.x] = '#'
 		}
 	}
+	return has_moved
 }
 
 func (f Field) EmptyGround() int {
@@ -208,14 +211,22 @@ func main() {
 	starttime := time.Now()
 	field := parse_input(os.Args[1])
 	parsetime := time.Now()
-	for round := 1; round <= 10; round++ {
+	round := 1
+	field.Expand()
+	var part1 int
+	var part1time time.Time
+	for field.Evolve(round - 1) {
+		if round == 10 {
+			part1 = field.EmptyGround()
+			part1time = time.Now()
+			fmt.Printf("After round %d:\n%s\nEmpty ground: %d\n", round, field, part1)
+		}
 		field.Expand()
-		//fmt.Printf("\nStarting round %d:\n%s", round, field)
-		field.Evolve(round - 1)
+		round++
 	}
-	part1 := field.EmptyGround()
-	part1time := time.Now()
-	fmt.Printf("\nempty ground part 1=%d\nEnd result:\n%s", part1, field)
+	fmt.Printf("Completed after round: %d\n%s", round, field)
+	part2time := time.Now()
 	fmt.Printf("Parse took: %s\n", parsetime.Sub(starttime))
 	fmt.Printf("part 1 took: %s\n", part1time.Sub(parsetime))
+	fmt.Printf("part 2 took: %s\n", part2time.Sub(part1time))
 }
