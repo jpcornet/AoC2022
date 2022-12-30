@@ -57,9 +57,9 @@ def main():
     for line in open(sys.argv[1], "r"):
         line = line.rstrip()
         num = Snafu(line)
-        print(f"input [{line}] num={int(num)} str={str(num)}")
+        print(f"input [{line}] num: {int(num)} str: {str(num)}")
         total += num
-    print(f"Total num={int(total)} str={str(total)}")
+    print(f"Total num: {int(total)} str: {str(total)}")
 
 if __name__ == "__main__":
     main()
