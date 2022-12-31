@@ -87,14 +87,15 @@ func (p Path) Score(bp Blueprint) int {
 		return p.score
 	}
 	s := p.states[len(p.states)-1]
+	// include all the materials that the robots will build
 	// geodes are obviously best, score them good.
-	p.score = s.geode * 1_000_000_000
+	p.score = (s.geode + s.geode_robot*s.timeleft) * 10_000_000_000
 	// geode cracking robots are second best, score according to how many we could have built
-	p.score += intmin(s.ore*1_000_000/bp.geode_ore_cost, s.obsidian*1_000_000/bp.geode_obs_cost)
+	p.score += intmin((s.ore+s.ore_robot*s.timeleft)*10_000_000/bp.geode_ore_cost, (s.obsidian+s.obs_robot*s.timeleft)*10_000_000/bp.geode_obs_cost)
 	// obsidian collecting robots are third, again score to how many could have been built
-	p.score += intmin(s.ore*1000/bp.obs_ore_cost, s.clay*1000/bp.obs_clay_cost)
+	p.score += intmin((s.ore+s.ore_robot*s.timeleft)*10_000/bp.obs_ore_cost, (s.clay+s.clay_robot*s.timeleft)*10_000/bp.obs_clay_cost)
 	// clay collecting robots are next, scoring even less
-	p.score += s.ore / bp.clay_cost
+	p.score += 10 * (s.ore + s.ore_robot*s.timeleft) / bp.clay_cost
 	return p.score
 }
 
@@ -108,55 +109,32 @@ func possible_next_steps(p Path, bp Blueprint) []Path {
 	state := p.states[len(p.states)-1]
 	// collect possible next steps, as BuildStates
 	var next_step []BuildState
-	// try adding all robot types, as much as possible
-	// start with ore robots. Include adding 0 robots
-	for ore_robot := 0; state.ore >= ore_robot*bp.ore_cost && state.ore_robot+ore_robot < 5; ore_robot++ {
+	// try adding all robot types, 0 or 1 ore robot because not adding robots is also an option
+	for ore_robot := 0; ore_robot <= 1 && state.ore >= ore_robot*bp.ore_cost; ore_robot++ {
 		new_state := BuildState{s: state, ore_robot: ore_robot}
 		new_state.s.ore -= ore_robot * bp.ore_cost
 		next_step = append(next_step, new_state)
 	}
-	// try adding clay robots, at least one. Add to more_next_step.
-	var clay_next_step []BuildState
-	for clay_robot := 1; state.ore >= clay_robot*bp.clay_cost; clay_robot++ {
-		// try adding to all the new states, stop if there are not enough materials
-		for _, ns := range next_step {
-			if ns.s.ore < clay_robot*bp.clay_cost {
-				break
-			}
-			new_state := BuildState{s: ns.s, clay_robot: clay_robot}
-			new_state.s.ore -= clay_robot * bp.clay_cost
-			clay_next_step = append(clay_next_step, new_state)
-		}
+	// try adding a clay robot
+	if state.ore >= bp.clay_cost {
+		new_state := BuildState{s: state, clay_robot: 1}
+		new_state.s.ore -= bp.clay_cost
+		next_step = append(next_step, new_state)
 	}
-	next_step = append(next_step, clay_next_step...)
-	// try adding obsidian robots, at least one
-	var obs_next_step []BuildState
-	for obs_robot := 1; state.ore >= obs_robot*bp.obs_ore_cost && state.clay >= obs_robot*bp.obs_clay_cost; obs_robot++ {
-		for _, ns := range next_step {
-			if ns.s.ore < obs_robot*bp.obs_ore_cost || ns.s.clay < obs_robot*bp.obs_clay_cost {
-				continue
-			}
-			new_state := BuildState{s: ns.s, obs_robot: obs_robot}
-			new_state.s.ore -= obs_robot * bp.obs_ore_cost
-			new_state.s.clay -= obs_robot * bp.obs_clay_cost
-			obs_next_step = append(obs_next_step, new_state)
-		}
+	// try adding an obsidian robot
+	if state.ore >= bp.obs_ore_cost && state.clay >= bp.obs_clay_cost {
+		new_state := BuildState{s: state, obs_robot: 1}
+		new_state.s.ore -= bp.obs_ore_cost
+		new_state.s.clay -= bp.obs_clay_cost
+		next_step = append(next_step, new_state)
 	}
-	next_step = append(next_step, obs_next_step...)
-	// try adding geode cracking robots, at least one
-	var geo_next_step []BuildState
-	for geode_robot := 1; state.ore >= geode_robot*bp.geode_ore_cost && state.obsidian >= geode_robot*bp.geode_obs_cost; geode_robot++ {
-		for _, ns := range next_step {
-			if ns.s.ore < geode_robot*bp.geode_ore_cost || ns.s.obsidian < geode_robot*bp.geode_obs_cost {
-				continue
-			}
-			new_state := BuildState{s: ns.s, geode_robot: geode_robot}
-			new_state.s.ore -= geode_robot * bp.geode_ore_cost
-			new_state.s.obsidian -= geode_robot * bp.geode_obs_cost
-			geo_next_step = append(geo_next_step, new_state)
-		}
+	// try adding a geode cracking robot
+	if state.ore >= bp.geode_ore_cost && state.obsidian >= bp.geode_obs_cost {
+		new_state := BuildState{s: state, geode_robot: 1}
+		new_state.s.ore -= bp.geode_ore_cost
+		new_state.s.obsidian -= bp.geode_obs_cost
+		next_step = append(next_step, new_state)
 	}
-	next_step = append(next_step, geo_next_step...)
 
 	// now we actually go and build the updated paths
 	next_path := make([]Path, len(next_step))
@@ -181,7 +159,7 @@ func possible_next_steps(p Path, bp Blueprint) []Path {
 	return next_path
 }
 
-func get_max_geodes(bp Blueprint, state State) Path {
+func get_max_geodes(bp Blueprint, state State, maxsolutions int) Path {
 	// keep a list of possible states here
 	solutions := make([]Path, 1)
 	solutions[0] = Path{states: []State{state}}
@@ -190,15 +168,6 @@ func get_max_geodes(bp Blueprint, state State) Path {
 	seen_miss := 0
 	for len(solutions) > 0 {
 		fmt.Printf("timeleft=%d, considering %d possible solutions\n", solutions[0].states[len(solutions[0].states)-1].timeleft, len(solutions))
-		if solutions[0].states[len(solutions[0].states)-1].timeleft == 12 {
-			fmt.Printf("All solutions:\n")
-			for _, s := range solutions {
-				final := s.states[len(s.states)-1]
-				fmt.Printf("ore=%d clay=%d obs=%d geode=%d ore_robot=%d clay_robot=%d obs_robot=%d geode_robot=%d\n",
-					final.ore, final.clay, final.obsidian, final.geode, final.ore_robot, final.clay_robot, final.obs_robot, final.geode_robot)
-			}
-			return solutions[0]
-		}
 		new_solutions := make([]Path, 0, len(solutions))
 		for _, s := range solutions {
 			next_step := possible_next_steps(s, bp)
@@ -228,7 +197,7 @@ func get_max_geodes(bp Blueprint, state State) Path {
 				new_solutions[position] = ns
 			}
 		}
-		fmt.Printf("seen cache hits=%d miss=%d\n", seen_hits, seen_miss)
+		//fmt.Printf("seen cache hits=%d miss=%d\n", seen_hits, seen_miss)
 		// iterate over new_solutions, and drop any that have fewer or same of everything
 		solutions = make([]Path, 0)
 		dropped := 0
@@ -245,6 +214,11 @@ func get_max_geodes(bp Blueprint, state State) Path {
 				}
 			}
 			solutions = append(solutions, ns)
+			if len(solutions) >= maxsolutions {
+				// only take the top scoring solutions
+				fmt.Printf("Cutting off solutions at %d. Bottom score=%d\n", maxsolutions, ns.Score(bp))
+				break
+			}
 		}
 		fmt.Printf("Dropped %d inferior solutions\n", dropped)
 		if len(solutions) == 0 {
@@ -271,7 +245,8 @@ func main() {
 		var state State
 		state.ore_robot = 1
 		state.timeleft = 24
-		result := get_max_geodes(bp, state)
+		// experimentally, consider max 150 solutions is more than enough
+		result := get_max_geodes(bp, state, 150)
 		final := result.states[len(result.states)-1]
 		fmt.Printf("Blueprint #%d produces max %d geodes, with: %v\n", bp.nr, final.geode, result)
 		total_quality += bp.nr * final.geode
@@ -280,4 +255,17 @@ func main() {
 	fmt.Printf("Total quality: %d\n", total_quality)
 	fmt.Printf("Parse took: %s\n", parsetime.Sub(starttime))
 	fmt.Printf("part 1 took: %s\n", part1time.Sub(parsetime))
+	multiple := 1
+	for _, bp := range blueprints[:intmin(3, len(blueprints))] {
+		var state State
+		state.ore_robot = 1
+		state.timeleft = 32
+		result := get_max_geodes(bp, state, 10000)
+		final := result.states[len(result.states)-1]
+		fmt.Printf("Blueprint #%d produces max %d geodes, with: %v\n", bp.nr, final.geode, result)
+		multiple *= final.geode
+	}
+	part2time := time.Now()
+	fmt.Printf("Multiplied number of geodes: %d\n", multiple)
+	fmt.Printf("part 2 took: %s\n", part2time.Sub(part1time))
 }
