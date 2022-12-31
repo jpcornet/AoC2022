@@ -17,7 +17,7 @@ type Blueprint struct {
 	obs_clay_cost  int
 	geode_ore_cost int
 	geode_obs_cost int
-	max_ore_robot  int // not sure if this is needed
+	//max_ore_robot  int // not sure if this is needed
 }
 
 type State struct {
@@ -110,9 +110,7 @@ func possible_next_steps(p Path, bp Blueprint) []Path {
 	var next_step []BuildState
 	// try adding all robot types, as much as possible
 	// start with ore robots. Include adding 0 robots
-	// XXX no ore robots for now
-	//for ore_robot := 0; state.ore >= ore_robot*bp.ore_cost; ore_robot++ {
-	for ore_robot := 0; ore_robot < 1; ore_robot++ {
+	for ore_robot := 0; state.ore >= ore_robot*bp.ore_cost && state.ore_robot+ore_robot < 5; ore_robot++ {
 		new_state := BuildState{s: state, ore_robot: ore_robot}
 		new_state.s.ore -= ore_robot * bp.ore_cost
 		next_step = append(next_step, new_state)
@@ -192,6 +190,15 @@ func get_max_geodes(bp Blueprint, state State) Path {
 	seen_miss := 0
 	for len(solutions) > 0 {
 		fmt.Printf("timeleft=%d, considering %d possible solutions\n", solutions[0].states[len(solutions[0].states)-1].timeleft, len(solutions))
+		if solutions[0].states[len(solutions[0].states)-1].timeleft == 12 {
+			fmt.Printf("All solutions:\n")
+			for _, s := range solutions {
+				final := s.states[len(s.states)-1]
+				fmt.Printf("ore=%d clay=%d obs=%d geode=%d ore_robot=%d clay_robot=%d obs_robot=%d geode_robot=%d\n",
+					final.ore, final.clay, final.obsidian, final.geode, final.ore_robot, final.clay_robot, final.obs_robot, final.geode_robot)
+			}
+			return solutions[0]
+		}
 		new_solutions := make([]Path, 0, len(solutions))
 		for _, s := range solutions {
 			next_step := possible_next_steps(s, bp)
@@ -221,7 +228,25 @@ func get_max_geodes(bp Blueprint, state State) Path {
 				new_solutions[position] = ns
 			}
 		}
-		solutions = new_solutions
+		fmt.Printf("seen cache hits=%d miss=%d\n", seen_hits, seen_miss)
+		// iterate over new_solutions, and drop any that have fewer or same of everything
+		solutions = make([]Path, 0)
+		dropped := 0
+	inspect_new_solutions:
+		for _, ns := range new_solutions {
+			new_final := ns.states[len(ns.states)-1]
+			for _, s := range solutions {
+				sol_final := s.states[len(s.states)-1]
+				if sol_final.ore >= new_final.ore && sol_final.clay >= new_final.ore && sol_final.obsidian >= new_final.obsidian &&
+					sol_final.geode >= new_final.geode && sol_final.ore_robot >= new_final.ore_robot && sol_final.clay_robot >= new_final.clay_robot &&
+					sol_final.obs_robot >= new_final.obs_robot && sol_final.geode_robot >= new_final.geode_robot {
+					dropped++
+					continue inspect_new_solutions
+				}
+			}
+			solutions = append(solutions, ns)
+		}
+		fmt.Printf("Dropped %d inferior solutions\n", dropped)
 		if len(solutions) == 0 {
 			fmt.Printf("No solutions found?\n")
 			return Path{}
