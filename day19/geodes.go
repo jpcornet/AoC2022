@@ -206,7 +206,7 @@ func get_max_geodes(bp Blueprint, state State, maxsolutions int) Path {
 			new_final := ns.states[len(ns.states)-1]
 			for _, s := range solutions {
 				sol_final := s.states[len(s.states)-1]
-				if sol_final.ore >= new_final.ore && sol_final.clay >= new_final.ore && sol_final.obsidian >= new_final.obsidian &&
+				if sol_final.ore >= new_final.ore && sol_final.clay >= new_final.clay && sol_final.obsidian >= new_final.obsidian &&
 					sol_final.geode >= new_final.geode && sol_final.ore_robot >= new_final.ore_robot && sol_final.clay_robot >= new_final.clay_robot &&
 					sol_final.obs_robot >= new_final.obs_robot && sol_final.geode_robot >= new_final.geode_robot {
 					dropped++
@@ -260,7 +260,7 @@ func main() {
 		var state State
 		state.ore_robot = 1
 		state.timeleft = 32
-		result := get_max_geodes(bp, state, 10000)
+		result := get_max_geodes(bp, state, 150)
 		final := result.states[len(result.states)-1]
 		fmt.Printf("Blueprint #%d produces max %d geodes, with: %v\n", bp.nr, final.geode, result)
 		multiple *= final.geode
