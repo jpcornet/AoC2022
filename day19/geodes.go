@@ -167,7 +167,7 @@ func get_max_geodes(bp Blueprint, state State, maxsolutions int) Path {
 	seen_hits := 0
 	seen_miss := 0
 	for len(solutions) > 0 {
-		fmt.Printf("timeleft=%d, considering %d possible solutions\n", solutions[0].states[len(solutions[0].states)-1].timeleft, len(solutions))
+		//fmt.Printf("timeleft=%d, considering %d possible solutions\n", solutions[0].states[len(solutions[0].states)-1].timeleft, len(solutions))
 		new_solutions := make([]Path, 0, len(solutions))
 		for _, s := range solutions {
 			next_step := possible_next_steps(s, bp)
@@ -216,11 +216,11 @@ func get_max_geodes(bp Blueprint, state State, maxsolutions int) Path {
 			solutions = append(solutions, ns)
 			if len(solutions) >= maxsolutions {
 				// only take the top scoring solutions
-				fmt.Printf("Cutting off solutions at %d. Bottom score=%d\n", maxsolutions, ns.Score(bp))
+				//fmt.Printf("Cutting off solutions at %d. Bottom score=%d\n", maxsolutions, ns.Score(bp))
 				break
 			}
 		}
-		fmt.Printf("Dropped %d inferior solutions\n", dropped)
+		//fmt.Printf("Dropped %d inferior solutions\n", dropped)
 		if len(solutions) == 0 {
 			fmt.Printf("No solutions found?\n")
 			return Path{}
@@ -245,7 +245,7 @@ func main() {
 		var state State
 		state.ore_robot = 1
 		state.timeleft = 24
-		// experimentally, consider max 150 solutions is more than enough
+		// experimentally, keeping a top 14 is enough, so max 150 solutions is more than enough
 		result := get_max_geodes(bp, state, 150)
 		final := result.states[len(result.states)-1]
 		fmt.Printf("Blueprint #%d produces max %d geodes, with: %v\n", bp.nr, final.geode, result)
@@ -260,7 +260,8 @@ func main() {
 		var state State
 		state.ore_robot = 1
 		state.timeleft = 32
-		result := get_max_geodes(bp, state, 150)
+		// experimentally, keeping a top 93 is enough, so 1000 should definately do it
+		result := get_max_geodes(bp, state, 1000)
 		final := result.states[len(result.states)-1]
 		fmt.Printf("Blueprint #%d produces max %d geodes, with: %v\n", bp.nr, final.geode, result)
 		multiple *= final.geode
