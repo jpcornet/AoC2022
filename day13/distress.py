@@ -2,6 +2,7 @@
 
 import sys
 import re
+import time
 
 class Mylist:
     def __init__(self, input):
@@ -56,32 +57,40 @@ def main():
     if len(sys.argv) != 2:
         print("Specify input file", file=sys.stderr)
         exit(-1)
+    starttime = time.clock_gettime_ns(time.CLOCK_REALTIME)
     pairs = parse_input(sys.argv[1])
+    parsetime = time.clock_gettime_ns(time.CLOCK_REALTIME)
 
     sum = 0
     for i in range(0, len(pairs)):
         if pairs[i][0] < pairs[i][1]:
             sum += i+1
     print(f"Sum of correct orders: {sum}")
+    part1time = time.clock_gettime_ns(time.CLOCK_REALTIME)
 
     # convert to flat list and sort it
     flat = []
     for p in pairs:
         flat += p
-    
+
     # add divider signals
     dividers = [ Mylist([[2]]), Mylist([[6]]) ]
     flat += dividers
-    print("Sorting flat list")
+    #print("Sorting flat list")
     flat.sort()
 
     decoder = 1
     for i in range(0, len(flat)):
-        print(f"{i+1}: {str(flat[i])}")
+        #print(f"{i+1}: {str(flat[i])}")
         if flat[i] in dividers:
-            print("^^^ divider")
+            #print("^^^ divider")
             decoder *= i+1
     print(f"Decoder: {decoder}")
+    part2time = time.clock_gettime_ns(time.CLOCK_REALTIME)
+
+    print(f"Parse took: {(parsetime - starttime)/1e6}ms")
+    print(f"part1 took: {(part1time - parsetime)/1e6}ms")
+    print(f"part2 took: {(part2time - part1time)/1e6}ms")
 
 if __name__ == "__main__":
     main()
