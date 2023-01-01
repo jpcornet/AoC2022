@@ -2,6 +2,7 @@
 
 use strict;
 use warnings;
+use Time::HiRes qw(gettimeofday tv_interval);
 
 my @rocks = map { [ reverse split /\n/, $_ ] } split("\n\n", <<END_OF_ROCKS);
 ####
@@ -102,8 +103,11 @@ sub drop_one_rock {
     }
 }
 
+my $start = [gettimeofday()];
 for ( 1..2022 ) {
     drop_one_rock();
 }
+my $took = tv_interval($start);
 show_stack();
 print "Height of tower: ", scalar @stack, "\n";
+print "Took: ", $took * 1e3, "ms\n";
