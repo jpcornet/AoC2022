@@ -82,6 +82,14 @@ func intmin(x, y int) int {
 	}
 }
 
+func intmax(x, y int) int {
+	if x > y {
+		return x
+	} else {
+		return y
+	}
+}
+
 func (p Path) Score(bp Blueprint) int {
 	if p.score != 0 {
 		return p.score
@@ -111,18 +119,23 @@ func possible_next_steps(p Path, bp Blueprint) []Path {
 	var next_step []BuildState
 	// try adding all robot types, 0 or 1 ore robot because not adding robots is also an option
 	for ore_robot := 0; ore_robot <= 1 && state.ore >= ore_robot*bp.ore_cost; ore_robot++ {
+		// mever add more ore robots than the max ore we need per step
+		if ore_robot == 1 && state.ore_robot+1 > intmax(bp.clay_cost, intmax(bp.obs_ore_cost, bp.geode_ore_cost)) {
+			// no point building this
+			continue
+		}
 		new_state := BuildState{s: state, ore_robot: ore_robot}
 		new_state.s.ore -= ore_robot * bp.ore_cost
 		next_step = append(next_step, new_state)
 	}
-	// try adding a clay robot
-	if state.ore >= bp.clay_cost {
+	// try adding a clay robot, if we need one
+	if state.ore >= bp.clay_cost && state.ore_robot+1 <= bp.obs_clay_cost {
 		new_state := BuildState{s: state, clay_robot: 1}
 		new_state.s.ore -= bp.clay_cost
 		next_step = append(next_step, new_state)
 	}
-	// try adding an obsidian robot
-	if state.ore >= bp.obs_ore_cost && state.clay >= bp.obs_clay_cost {
+	// try adding an obsidian robot, if we need one
+	if state.ore >= bp.obs_ore_cost && state.clay >= bp.obs_clay_cost && state.obs_robot+1 <= bp.geode_obs_cost {
 		new_state := BuildState{s: state, obs_robot: 1}
 		new_state.s.ore -= bp.obs_ore_cost
 		new_state.s.clay -= bp.obs_clay_cost
@@ -159,7 +172,42 @@ func possible_next_steps(p Path, bp Blueprint) []Path {
 	return next_path
 }
 
-func get_max_geodes(bp Blueprint, state State, maxsolutions int) Path {
+// estimate the least and most a solution can provide
+func get_estimates(s State, bp Blueprint) (int, int) {
+	// least amount of cracked geodes is amount we already did, plus what current robots can crack
+	least := s.geode + s.geode_robot*s.timeleft
+	// calculate the min time needed to start building a geode cracking robots
+	time_needed := 0
+	if s.obsidian < bp.geode_obs_cost {
+		// we do not have enough obsidian. Do we have enough clay to build an obsidian robot?
+		if s.clay < bp.obs_clay_cost {
+			// we do not. Assume we can build a clay robot each step
+			projected_clay := s.clay
+			projected_clay_robot := s.clay_robot
+			for projected_clay < bp.obs_clay_cost {
+				projected_clay += projected_clay_robot
+				projected_clay_robot++
+			}
+		}
+		// we have enough clay, assume we can build an obsidian robot each step
+		projected_obsidian := s.obsidian
+		projected_obs_robot := s.obs_robot
+		for projected_obsidian < bp.geode_obs_cost {
+			time_needed++
+			projected_obsidian += projected_obs_robot
+			projected_obs_robot++
+		}
+	}
+	most := least
+	// for the rest of the time (if any), assume we can build a geode cracking robot each step
+	if s.timeleft > time_needed {
+		timeleft := s.timeleft - time_needed
+		most += timeleft * (timeleft - 1) / 2
+	}
+	return least, most
+}
+
+func get_max_geodes(bp Blueprint, state State) Path {
 	// keep a list of possible states here
 	solutions := make([]Path, 1)
 	solutions[0] = Path{states: []State{state}}
@@ -201,24 +249,30 @@ func get_max_geodes(bp Blueprint, state State, maxsolutions int) Path {
 		// iterate over new_solutions, and drop any that have fewer or same of everything
 		solutions = make([]Path, 0)
 		dropped := 0
+		// gussing the least amount of geodes that the current solution produces, and then take the best of that
+		least_best := 0
 	inspect_new_solutions:
 		for _, ns := range new_solutions {
 			new_final := ns.states[len(ns.states)-1]
+			least, most := get_estimates(new_final, bp)
+			if least_best < least {
+				//fmt.Printf("new least_best=%d\n", least)
+				least_best = least
+			}
+			if most < least_best {
+				// no point continuing with this one
+				dropped++
+				continue inspect_new_solutions
+			}
 			for _, s := range solutions {
 				sol_final := s.states[len(s.states)-1]
 				if sol_final.ore >= new_final.ore && sol_final.clay >= new_final.clay && sol_final.obsidian >= new_final.obsidian &&
 					sol_final.geode >= new_final.geode && sol_final.ore_robot >= new_final.ore_robot && sol_final.clay_robot >= new_final.clay_robot &&
 					sol_final.obs_robot >= new_final.obs_robot && sol_final.geode_robot >= new_final.geode_robot {
-					dropped++
 					continue inspect_new_solutions
 				}
 			}
 			solutions = append(solutions, ns)
-			if len(solutions) >= maxsolutions {
-				// only take the top scoring solutions
-				//fmt.Printf("Cutting off solutions at %d. Bottom score=%d\n", maxsolutions, ns.Score(bp))
-				break
-			}
 		}
 		//fmt.Printf("Dropped %d inferior solutions\n", dropped)
 		if len(solutions) == 0 {
@@ -246,7 +300,7 @@ func main() {
 		state.ore_robot = 1
 		state.timeleft = 24
 		// experimentally, keeping a top 14 is enough, so max 150 solutions is more than enough
-		result := get_max_geodes(bp, state, 150)
+		result := get_max_geodes(bp, state)
 		final := result.states[len(result.states)-1]
 		fmt.Printf("Blueprint #%d produces max %d geodes, with: %v\n", bp.nr, final.geode, result)
 		total_quality += bp.nr * final.geode
@@ -261,7 +315,7 @@ func main() {
 		state.ore_robot = 1
 		state.timeleft = 32
 		// experimentally, keeping a top 93 is enough, so 1000 should definately do it
-		result := get_max_geodes(bp, state, 1000)
+		result := get_max_geodes(bp, state)
 		final := result.states[len(result.states)-1]
 		fmt.Printf("Blueprint #%d produces max %d geodes, with: %v\n", bp.nr, final.geode, result)
 		multiple *= final.geode
