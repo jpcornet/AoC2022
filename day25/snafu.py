@@ -57,9 +57,11 @@ def main():
     for line in open(sys.argv[1], "r"):
         line = line.rstrip()
         num = Snafu(line)
-        print(f"input [{line}] num: {int(num)} str: {str(num)}")
+        #print(f"input [{line}] num: {int(num)} str: {str(num)}")
         total += num
+    endtime = time.clock_gettime_ns(time.CLOCK_REALTIME)
     print(f"Total num: {int(total)} str: {str(total)}")
+    print(f"Took: {(endtime - starttime)/1e3}µs")
 
 if __name__ == "__main__":
     main()
