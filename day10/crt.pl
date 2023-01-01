@@ -2,6 +2,7 @@
 
 use strict;
 use warnings;
+use Time::HiRes qw(gettimeofday tv_interval);
 
 my $x = 1;
 my $cycle = 0;
@@ -12,6 +13,7 @@ my $at = 20;
 # collect CRT lines here (as one line)
 my $crt = '';
 
+my $start = [gettimeofday()];
 while ( <> ) {
     my ($op, $val) = split;
     my $newx = $x;
@@ -43,3 +45,4 @@ while ( <> ) {
 
 print "Part 2, CRT result:\n";
 print substr($crt, $_ * 40, 40), "\n" for 0 .. 5;
+print "Total runtime: ", tv_interval($start) * 1e6, "µs\n";
