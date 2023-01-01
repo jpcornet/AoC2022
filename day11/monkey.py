@@ -18,18 +18,18 @@ def main():
     monkeys = parse_monkeys(sys.argv[1], panic=panic)
     starttime = time.clock_gettime_ns(time.CLOCK_REALTIME)
     for roundnum in range(1, 21 if not panic else 10001):
-        maxmonkey = max([ max(m["items"]) if m["items"] else 0 for m in monkeys ])
-        print(f"== Starting round {roundnum}. Max item value is {maxmonkey}")
+        #maxmonkey = max([ max(m["items"]) if m["items"] else 0 for m in monkeys ])
+        #print(f"== Starting round {roundnum}. Max item value is {maxmonkey}")
         do_one_round(monkeys, panic)
-        if roundnum in (1, 20) or roundnum in range(1000, 10000, 1000):
-            print(f"== After round {roundnum} ==")
-            for i in range(0, len(monkeys)):
-                print(f"Monkey {i} inspected items {monkeys[i]['inspected']} times")
+        #if roundnum in (1, 20) or roundnum in range(1000, 10000, 1000):
+        #    print(f"== After round {roundnum} ==")
+        #    for i in range(0, len(monkeys)):
+        #        print(f"Monkey {i} inspected items {monkeys[i]['inspected']} times")
     endtime = time.clock_gettime_ns(time.CLOCK_REALTIME)
-    print("== after all rounds")
+    #print("== after all rounds")
     inspected = [ m['inspected'] for m in monkeys ]
-    for i in range(0, len(monkeys)):
-        print(f"Monkey {i} inspected items {inspected[i]} items")
+    #for i in range(0, len(monkeys)):
+    #    print(f"Monkey {i} inspected items {inspected[i]} items")
     inspected.sort(reverse=True)
     print(f"Most active monkeys had {inspected[0]} and {inspected[1]} items. Monkey business is {inspected[0] * inspected[1]}")
     print(f"Rounds took: {(endtime - starttime) / 1e6}ms")
@@ -96,7 +96,7 @@ def parse_monkeys(filename: str, panic=False) -> list:
         monkey_num = int(m_monkey["monkey"])
         while len(monkeys) <= monkey_num:
             monkeys.append(None)
-        print(f"Parsed monkey {monkey_num}: item={m_monkey['items']}, op={m_monkey['opstr']}, divtest={m_monkey['divisible']}, true={m_monkey['truedest']}, false={m_monkey['falsedest']}")
+        #print(f"Parsed monkey {monkey_num}: item={m_monkey['items']}, op={m_monkey['opstr']}, divtest={m_monkey['divisible']}, true={m_monkey['truedest']}, false={m_monkey['falsedest']}")
         monkeys[monkey_num] = {
             "items": [ int(i) for i in re.split(r',\s*', m_monkey["items"]) ],
             "opstr": m_monkey["opstr"],
@@ -107,7 +107,7 @@ def parse_monkeys(filename: str, panic=False) -> list:
         }
         # keep track of product of all divisible tests
         moditem = math.lcm(moditem, monkeys[monkey_num]["divisible"])
-    print(f"Product of all divisible tests is {moditem}")
+    #print(f"Product of all divisible tests is {moditem}")
     # now create callbacks for each monkey
     for m in monkeys:
         m["operation"] = create_eval(m["opstr"], moditem if panic else None)
