@@ -25,6 +25,8 @@ type NumList struct {
 
 const spacing = 1 << 32
 
+const minspacing = 1 << 8
+
 func parse_input(filename string) NumList {
 	inbuf, err := os.ReadFile(filename)
 	if err != nil {
@@ -134,11 +136,10 @@ func (nl NumList) Move(i int) {
 		nl.positions[newrealpos] = newpos
 		//fmt.Printf("Moving up val=%d from realpos=%d to newrealpos=%d. Original rel position=%d, new rel position=%d\n", val, realpos, newrealpos, curpos, newpos)
 	} else { // realpos > newrealpos
-		copy(nl.positions[newrealpos+2:realpos], nl.positions[newrealpos+1:realpos-1])
+		copy(nl.positions[newrealpos+2:realpos+1], nl.positions[newrealpos+1:realpos])
 		nl.positions[newrealpos+1] = newpos
 		//fmt.Printf("Moving down val=%d from realpos=%d to newrealpos=%d. Original rel position=%d, new rel position=%d\n", val, realpos, newrealpos, curpos, newpos)
 	}
-	nl.entries[i].pos = newpos
 	// fix the positions array. "realpos" goes away
 	//fmt.Printf("numlist=%v\n", nl)
 }
@@ -147,6 +148,53 @@ func (nl NumList) Offset0(i int) int {
 	nl.MakeSorted()
 	wantedpos := (i + nl.zeropos) % len(nl.sortedentries)
 	return nl.sortedentries[wantedpos].val
+}
+
+func (nl *NumList) Rebalance() {
+	// check if rebalance is necessary
+	is_needed := false
+	prev := nl.positions[0]
+	for _, pos := range nl.positions[1:] {
+		if pos-prev < minspacing {
+			is_needed = true
+			break
+		}
+		prev = pos
+	}
+	if !is_needed {
+		return
+	}
+	//fmt.Printf("Rebalancing...\n")
+	remap := make(map[int]int, len(nl.positions))
+	newpos := spacing / 2
+	new_positions := make([]int, 0, len(nl.positions))
+	for _, pos := range nl.positions {
+		remap[pos] = newpos
+		new_positions = append(new_positions, newpos)
+		newpos += spacing
+	}
+	nl.positions = new_positions
+	for i := range nl.entries {
+		nl.entries[i].pos = remap[nl.entries[i].pos]
+	}
+}
+
+func (nl *NumList) Reset() {
+	nl.sortedentries = nil
+	pos := spacing / 2
+	nl.positions = make([]int, 0, len(nl.entries))
+	for i := range nl.entries {
+		nl.entries[i].pos = pos
+		nl.positions = append(nl.positions, pos)
+		pos += spacing
+	}
+}
+
+func (nl *NumList) Decrypt(key int) {
+	nl.sortedentries = nil
+	for i := range nl.entries {
+		nl.entries[i].val *= key
+	}
 }
 
 func main() {
@@ -167,6 +215,25 @@ func main() {
 	}
 	part1time := time.Now()
 	fmt.Println("part1 sum: ", part1)
+	numlist.Reset()
+	numlist.Decrypt(811589153)
+	for round := 1; round <= 10; round++ {
+		for i := 0; i < numlist.Len(); i++ {
+			numlist.Move(i)
+		}
+		// Make sure there is enough room between the positions to insert some numbers
+		numlist.Rebalance()
+		//fmt.Printf("After round %d, list = %s\n", round, numlist.Str())
+	}
+	part2 := 0
+	for _, offset := range []int{1000, 2000, 3000} {
+		num := numlist.Offset0(offset)
+		fmt.Printf("Number at offset %d is %d\n", offset, num)
+		part2 += num
+	}
+	part2time := time.Now()
+	fmt.Printf("part 2 sum: %d\n", part2)
 	fmt.Printf("Parse took: %s\n", parsetime.Sub(starttime))
 	fmt.Printf("Part 1 took: %s\n", part1time.Sub(parsetime))
+	fmt.Printf("Part 2 took: %s\n", part2time.Sub(part1time))
 }
