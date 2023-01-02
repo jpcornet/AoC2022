@@ -270,14 +270,14 @@ Runtime:
 
 * day 24 - Go
 
-More data structures as keys in has maps. There might be a nice speedup considering that the blizzard patterns repeat after a while, saving the trouble of
-having to recalculate the position of all the blizzards. But I haven't implemented that (yet).
+More data structures as keys in has maps. Got a decent speedup by considering that the blizzard positions repeat after LCM(height, width)
+steps.
 
 Runtime:
 
-    part1: 270ms
-    part2: 560ms
-    total: 830ms
+    part1: 240ms
+    part2: 300ms
+    total: 540ms
 
 * day 25 - Python
 
@@ -291,4 +291,4 @@ Runtime:
 
 Grand total runtime of all programs:
 
-2725ms
+2435ms
