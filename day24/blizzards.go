@@ -23,10 +23,22 @@ type Blizzard struct {
 	dir Direction
 }
 
+type BlizzardMap map[Pos]bool
+
 type Field struct {
 	width, height int
 	in, out       Pos
+	time_i        int
+	lcm           int
 	blizzards     []Blizzard
+	maps          []BlizzardMap
+}
+
+func gcd(a, b int) int {
+	for b > 0 {
+		a, b = b, a%b
+	}
+	return a
 }
 
 func parse_input(filename string) Field {
@@ -77,13 +89,23 @@ func parse_input(filename string) Field {
 			}
 		}
 	}
+	// height and width include the walls on all sides, so the field is 2 smaller
+	field.lcm = (field.height - 2) * (field.width - 2) / gcd(field.height-2, field.width-2)
 	return field
 }
 
 type Dir struct{ dx, dy int }
 
-func (f Field) MoveBlizzards() {
+func (f *Field) MoveBlizzards() BlizzardMap {
+	f.time_i++
+	// no need to move the blizzards if we already have their positions
+	if len(f.maps) > f.time_i%f.lcm && f.maps[f.time_i%f.lcm] != nil {
+		return f.maps[f.time_i%f.lcm]
+	}
+	// calculate new blizzard positions
 	directions := []Dir{{1, 0}, {0, 1}, {-1, 0}, {0, -1}}
+	// create new blizzard map and populate it
+	bmap := make(BlizzardMap)
 	for nr, b := range f.blizzards {
 		d := directions[b.dir]
 		newpos := Pos{b.pos.x + d.dx, b.pos.y + d.dy}
@@ -98,13 +120,19 @@ func (f Field) MoveBlizzards() {
 			newpos.y = 1
 		}
 		f.blizzards[nr] = Blizzard{pos: newpos, dir: b.dir}
+		bmap[newpos] = true
 	}
+	for len(f.maps) <= f.time_i%f.lcm {
+		f.maps = append(f.maps, nil)
+	}
+	f.maps[f.time_i%f.lcm] = bmap
+	return bmap
 }
 
 // Path is a collection of posistions. Current position is the tail
 type Path []Pos
 
-func walk_path(f Field, start, finish Pos) (int, Path) {
+func walk_path(f *Field, start, finish Pos) (int, Path) {
 	current_pos := make([]Path, 1)
 	current_pos[0] = []Pos{start}
 	// possible directions we can walk. Standing still is also an option.
@@ -113,12 +141,7 @@ func walk_path(f Field, start, finish Pos) (int, Path) {
 	for {
 		//fmt.Printf("Start step %d, positions to consider: %d\n", step, len(current_pos))
 		// start by moving the blizzards to the next position. From there we can figure out where we can go.
-		f.MoveBlizzards()
-		// determine where the blizzards are, in a map
-		blizzards := make(map[Pos]bool)
-		for _, b := range f.blizzards {
-			blizzards[b.pos] = true
-		}
+		blizzards := f.MoveBlizzards()
 		// keep track of positions we've already seen in this move, to prevent duplicates
 		seen := make(map[Pos]bool)
 		// collect a list of all possible next moves
@@ -167,13 +190,13 @@ func main() {
 	starttime := time.Now()
 	field := parse_input(os.Args[1])
 	parsetime := time.Now()
-	steps, path := walk_path(field, field.in, field.out)
+	steps, path := walk_path(&field, field.in, field.out)
 	part1time := time.Now()
-	fmt.Printf("part 1 Steps: %d , Path taken: %v\n", steps, path)
-	steps2, path2 := walk_path(field, field.out, field.in)
-	fmt.Printf("part 2 going back, steps: %d, path taken: %v\n", steps2, path2)
-	steps3, path3 := walk_path(field, field.in, field.out)
+	steps2, path2 := walk_path(&field, field.out, field.in)
+	steps3, path3 := walk_path(&field, field.in, field.out)
 	part2time := time.Now()
+	fmt.Printf("part 1 Steps: %d , Path taken: %v\n", steps, path)
+	fmt.Printf("part 2 going back, steps: %d, path taken: %v\n", steps2, path2)
 	fmt.Printf("part 2 return, steps: %d, path taken: %v\n", steps3, path3)
 	fmt.Printf("part 2 total time: %d\n", steps+steps2+steps3)
 	fmt.Printf("Parse took: %s\n", parsetime.Sub(starttime))
