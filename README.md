@@ -142,6 +142,7 @@ Runtime:
 
     parsing: 430µs
     part1 & 2: 350µs
+    Total: 780µs
 
 * day 15 - Go
 
@@ -201,20 +202,24 @@ Runtime:
     part2: 117ms
     Total: 422ms
 
-* day 20 - Python
+* day 20 - Python & Go
 
 As I thought this was going to be easy and would not take too long.
 
 Also, I completely misjudged what is and isn't fast in python. For part 1 I had a solution that performed reasonably, using lots of array/slice copying.
 Then I had the (failing) suggestion that instead of actually moving those slices around, I would just update a virtual position index. This turned out to be a mistake, but it did allow me to complete part 2, and I didn't feel like rewriting it all.
 
-So, these runtimes are rather sub-optimal.
+So, these runtimes were rather sub-optimal (2 seconds for part 1, 23 seconds for part 2).
+
+As this was the only day where the solution took more than a second runtime, I decided to rewrite in Go, and add some more speed optimizations. Each move only needs a binary search of O(log n), and a partial array move. The entries still keep a
+"virtual" position, but the initial positions are so far apart that there is enough room to insert numbers in between. If after a round of moving the numbers get too close together, we rebalance those virtual positions. The original order is always
+kept as the order of the array, making it really easy to move stuff.
 
 Runtime:
 
-    part1: 2.2s
-    part2: 23s
-    Total: 25s
+    part1: 3ms
+    part2: 15ms
+    Total: 18ms
 
 * day 21 - Python
 
@@ -282,3 +287,8 @@ Runtime:
 
     total: 850µs
 
+* Total
+
+Grand total runtime of all programs:
+
+2725ms
